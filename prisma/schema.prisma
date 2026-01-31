@@ -1,0 +1,213 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum CoupleStatus {
+  ACTIVE
+  PAUSED
+}
+
+enum LoveLanguage {
+  WORDS
+  TIME
+  GIFTS
+  SERVICE
+  TOUCH
+}
+
+enum ToneMode {
+  ANALYTICAL
+  WARM
+  CALM
+  STRATEGIC
+}
+
+enum PlanType {
+  FREE
+  PREMIUM
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  image     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Auth.js / NextAuth
+  accounts Account[]
+  sessions Session[]
+
+  // Resonance
+  memberships CoupleMember[]
+  profiles    LoveProfile[]
+  checkins    CheckIn[]
+  reportViews WeeklyReportForUser[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Couple {
+  id         String       @id @default(cuid())
+  status     CoupleStatus @default(ACTIVE)
+  reportDay  Int          @default(0) // 0=Sunday ... 6=Saturday
+  timezone   String       @default("America/Toronto")
+  pausedAt   DateTime?
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  members       CoupleMember[]
+  invites       Invite[]
+  profiles      LoveProfile[]
+  checkins      CheckIn[]
+  weeklyReports WeeklyReport[]
+  subscription  Subscription?
+}
+
+model CoupleMember {
+  id        String   @id @default(cuid())
+  coupleId  String
+  userId    String
+  joinedAt  DateTime @default(now())
+
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([coupleId, userId])
+  @@index([userId])
+}
+
+model Invite {
+  id         String   @id @default(cuid())
+  coupleId   String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  acceptedAt DateTime?
+  createdAt  DateTime @default(now())
+
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+
+  @@index([coupleId])
+}
+
+model LoveProfile {
+  id                String       @id @default(cuid())
+  coupleId          String
+  userId            String
+  primaryLanguage   LoveLanguage
+  secondaryLanguage LoveLanguage?
+  avoidList         Json?
+  expressionStyle   Json?
+  completedAt       DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([coupleId, userId])
+  @@index([userId])
+}
+
+model CheckIn {
+  id                  String   @id @default(cuid())
+  coupleId            String
+  userId              String
+  feltLovedScore      Int
+  whatMadeMeFeelLoved String?  @db.VarChar(280)
+  loveLanguageTag     LoveLanguage?
+  createdAt           DateTime @default(now())
+
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([coupleId, createdAt])
+  @@index([userId, createdAt])
+}
+
+model WeeklyReport {
+  id        String   @id @default(cuid())
+  coupleId  String
+  weekStart DateTime
+  tone      ToneMode
+  createdAt DateTime @default(now())
+
+  couple  Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  reports WeeklyReportForUser[]
+
+  @@unique([coupleId, weekStart])
+  @@index([coupleId, weekStart])
+}
+
+model WeeklyReportForUser {
+  id             String   @id @default(cuid())
+  weeklyReportId String
+  userId         String
+  sectionsJson   Json
+  openedAt       DateTime?
+  createdAt      DateTime @default(now())
+
+  weeklyReport WeeklyReport @relation(fields: [weeklyReportId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([weeklyReportId, userId])
+  @@index([userId, createdAt])
+}
+
+model Subscription {
+  id                   String   @id @default(cuid())
+  coupleId              String  @unique
+  plan                  PlanType @default(FREE)
+  stripeCustomerId      String?
+  stripeSubscriptionId  String?
+  status                String?
+  currentPeriodEnd      DateTime?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+}
