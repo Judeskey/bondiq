@@ -38,6 +38,7 @@ model User {
   email     String   @unique
   name      String?
   image     String?
+  emailVerified DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -154,20 +155,26 @@ model LoveProfile {
 }
 
 model CheckIn {
-  id                  String   @id @default(cuid())
-  coupleId            String
-  userId              String
-  feltLovedScore      Int
-  whatMadeMeFeelLoved String?  @db.VarChar(280)
-  loveLanguageTag     LoveLanguage?
-  createdAt           DateTime @default(now())
+  id        String   @id @default(cuid())
 
-  couple Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  coupleId  String
+  userId    String
 
-  @@index([coupleId, createdAt])
+  weekStart DateTime
+
+  rating    Int
+  whatMadeMeFeelLoved String
+  languageTags String[] @default([])
+
+  createdAt DateTime @default(now())
+
+  couple    Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([coupleId, weekStart])
   @@index([userId, createdAt])
 }
+
 
 model WeeklyReport {
   id        String   @id @default(cuid())
