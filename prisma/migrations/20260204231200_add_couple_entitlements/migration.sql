@@ -1,0 +1,5 @@
+-- AlterTable
+ALTER TABLE "Couple" ADD COLUMN     "billingOwnerUserId" TEXT,
+ADD COLUMN     "planType" "PlanType" NOT NULL DEFAULT 'FREE',
+ADD COLUMN     "planUpdatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "proUntil" TIMESTAMP(3);

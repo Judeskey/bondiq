@@ -1,81 +1,64 @@
+// app/api/checkins/create/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/requireUser";
 import { getCoupleForUser } from "@/lib/getCoupleForUser";
 
-const VALID_TAGS = ["WORDS", "TIME", "GIFTS", "SERVICE", "TOUCH"] as const;
-type LoveTag = (typeof VALID_TAGS)[number];
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 function startOfWeek(d: Date) {
   const x = new Date(d);
   x.setHours(0, 0, 0, 0);
-
-  // Monday as start of week
   const day = x.getDay();
-  const diff = (day === 0 ? -6 : 1) - day;
+  const diff = (day === 0 ? -6 : 1) - day; // Monday
   x.setDate(x.getDate() + diff);
-
   return x;
-}
-
-function normalizeTags(input: unknown): LoveTag[] {
-  if (!Array.isArray(input)) return [];
-  const tags = input
-    .map((t) => String(t).toUpperCase().trim())
-    .filter((t): t is LoveTag => (VALID_TAGS as readonly string[]).includes(t));
-
-  // de-dupe + cap to 3
-  return Array.from(new Set(tags)).slice(0, 3);
 }
 
 export async function POST(req: Request) {
   try {
-    // ✅ Get signed-in user
     const { email } = await requireUser();
+    const me = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (!me) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
+    const coupleId = await getCoupleForUser(me.id);
+    if (!coupleId) return NextResponse.json({ error: "No couple connected" }, { status: 400 });
 
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    const body = await req.json().catch(() => ({}));
+
+    const rating = Number(body?.rating);
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5) {
+      return NextResponse.json({ error: "Rating must be between 1 and 5." }, { status: 400 });
     }
 
-    // ✅ Get couple
-    const coupleId = await getCoupleForUser(user.id);
+    const rawText = typeof body?.text === "string" ? body.text : "";
+    const text = rawText.trim().slice(0, 500); // ✅ allow empty string
 
-    if (!coupleId) {
-      return NextResponse.json({ error: "No couple connected" }, { status: 400 });
-    }
-
-    // ✅ Parse body
-    const body = await req.json();
-
-    const rating = Math.min(5, Math.max(1, Number(body.rating) || 3));
-    const text = String(body.text || "").slice(0, 500);
-
-    // ✅ Multi-tag support (up to 3)
-    // Expect client sends: { rating, text, tags: ["TOUCH","TIME"] }
-    const tags = normalizeTags(body.tags);
+    const tags = Array.isArray(body?.tags) ? body.tags.slice(0, 3).map(String) : [];
 
     const weekStart = startOfWeek(new Date());
 
-    // ✅ Create check-in
-    const checkin = await prisma.checkIn.create({
+    const created = await prisma.checkIn.create({
       data: {
         coupleId,
-        userId: user.id,
+        userId: me.id,
         weekStart,
         rating,
-        whatMadeMeFeelLoved: text,
-        languageTags: tags, // <-- requires Prisma field: languageTags String[] @default([])
+        whatMadeMeFeelLoved: text, // ✅ empty string ok (schema unchanged)
+        languageTags: tags as any,
+      },
+      select: {
+        id: true,
+        rating: true,
+        whatMadeMeFeelLoved: true,
+        languageTags: true,
+        createdAt: true,
       },
     });
 
-    return NextResponse.json({ ok: true, checkin });
+    return NextResponse.json({ ok: true, entry: created });
   } catch (e: any) {
-    const message = e?.message || "Unauthorized";
-    const status = message === "UNAUTHORIZED" ? 401 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return NextResponse.json({ error: e?.message || "Unauthorized" }, { status: 401 });
   }
 }

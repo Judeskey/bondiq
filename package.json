@@ -1,7 +1,10 @@
 {
-  "name": "resonance-mvp",
+  "name": "bondiq",
   "private": true,
   "version": "0.1.0",
+  "overrides": {
+    "@auth/core": "0.41.1"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -12,21 +15,37 @@
     "prisma:studio": "prisma studio"
   },
   "dependencies": {
+    "@auth/core": "0.41.1",
     "@auth/prisma-adapter": "^2.0.0",
+    "@hookform/resolvers": "^5.2.2",
     "@prisma/client": "^5.0.0",
+    "bcryptjs": "^3.0.3",
+    "framer-motion": "^12.33.0",
     "next": "^14.2.0",
     "next-auth": "beta",
+    "openai": "^6.17.0",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0"
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.6.0",
+    "recharts": "^3.7.0",
+    "resend": "^6.9.1",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20.0.0",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.0",
     "postcss": "^8.4.0",
     "prisma": "^5.0.0",
     "tailwindcss": "^3.4.0",
+    "tsx": "^4.21.0",
     "typescript": "^5.4.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

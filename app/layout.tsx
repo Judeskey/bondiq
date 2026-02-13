@@ -1,12 +1,25 @@
 
 import "./globals.css";
 import PwaRegister from "@/components/PwaRegister";
+import { Toaster } from "react-hot-toast";
+
+<Toaster
+  position="top-center"
+  toastOptions={{
+    style:{
+      borderRadius:"16px",
+      background:"#fff",
+      color:"#333",
+      padding:"12px 16px"
+    }
+  }}
+/>
 
 export const metadata = {
-  title: "Resonance",
+  title: "BondIQ",
   description: "Weekly relationship insights that help love land.",
-  applicationName: "Resonance",
-  appleWebApp: { capable: true, statusBarStyle: "default", title: "Resonance" },
+  applicationName: "BondIQ",
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "BondIQ" },
   formatDetection: { telephone: false },
 };
 

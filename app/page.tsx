@@ -4,7 +4,7 @@ import Link from "next/link";
 export default function HomePage() {
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-3xl font-semibold">Resonance</h1>
+      <h1 className="text-3xl font-semibold">BondIQ</h1>
       <p className="mt-3 text-slate-700">
         Weekly relationship insights that help love land.
       </p>
