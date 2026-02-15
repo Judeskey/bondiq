@@ -10,6 +10,7 @@ import InsightsPanel from "@/components/insights/InsightsPanel";
 import type { ReportJson } from "@/lib/reportSchema";
 import Link from "next/link";
 import CommitmentCandles from "./components/CommitmentCandles";
+
 import ReportEngagementTracker from "./components/ReportEngagementTracker";
 
 type Report = {

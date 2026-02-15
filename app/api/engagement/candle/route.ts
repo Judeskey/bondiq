@@ -21,6 +21,59 @@ function daysAgoUTC(days: number) {
   return d;
 }
 
+function clean(s: any) {
+  return typeof s === "string" ? s.trim() : "";
+}
+
+/**
+ * Abbreviate email like:
+ *   jude.okoye@example.com -> jude…@example.com
+ *   ab@x.com -> ab@x.com
+ */
+function abbreviateEmail(email: string) {
+  const e = clean(email);
+  const at = e.indexOf("@");
+  if (at <= 0) return e || "";
+
+  const local = e.slice(0, at);
+  const domain = e.slice(at + 1);
+
+  if (!domain) return e;
+
+  if (local.length <= 3) return `${local}@${domain}`;
+
+  const head = local.slice(0, 4);
+  return `${head}…@${domain}`;
+}
+
+/**
+ * Label preference:
+ * 1) nickname (viewer-specific PartnerAlias)
+ * 2) user.name
+ * 3) abbreviated email
+ * 4) Partner X
+ */
+function computeLabel(args: {
+  nickname?: string | null;
+  name?: string | null;
+  email?: string | null;
+  fallback: string;
+}) {
+  const nick = clean(args.nickname);
+  if (nick) return nick;
+
+  const name = clean(args.name);
+  if (name) return name;
+
+  const email = clean(args.email);
+  if (email) {
+    const ab = abbreviateEmail(email);
+    if (ab) return ab;
+  }
+
+  return args.fallback;
+}
+
 /**
  * Completeness based on: has text + has tags + rating exists
  * (Simple MVP scoring; you can refine later.)
@@ -33,7 +86,10 @@ function completenessScoreFromCheckins(checkins: any[]) {
 
   for (const c of checkins) {
     const ratingOk = typeof c?.rating === "number" ? 1 : 0;
-    const textOk = typeof c?.whatMadeMeFeelLoved === "string" && c.whatMadeMeFeelLoved.trim().length > 0 ? 1 : 0;
+    const textOk =
+      typeof c?.whatMadeMeFeelLoved === "string" && c.whatMadeMeFeelLoved.trim().length > 0
+        ? 1
+        : 0;
     const tagsOk = Array.isArray(c?.languageTags) && c.languageTags.length > 0 ? 1 : 0;
 
     // 0..100
@@ -59,8 +115,6 @@ export async function GET() {
     const coupleId = await getCoupleForUser(userId);
     if (!coupleId) return NextResponse.json({ error: "No couple connected" }, { status: 400 });
 
-    // ✅ FIX 1: CoupleMember has joinedAt, not createdAt
-    // ✅ FIX 2: CoupleMember has no label field; use related User data for display
     const members = await prisma.coupleMember.findMany({
       where: { coupleId },
       select: {
@@ -78,6 +132,23 @@ export async function GET() {
 
     const memberIds = members.map((m) => m.userId);
     if (memberIds.length === 0) return NextResponse.json({ ok: true, members: [] });
+
+    // ✅ Pull viewer-specific nicknames for these members
+    // ownerUserId = viewer (current user), targetUserId = the person being displayed
+    const aliases = await prisma.partnerAlias.findMany({
+      where: {
+        coupleId,
+        ownerUserId: userId,
+        targetUserId: { in: memberIds },
+      },
+      select: { targetUserId: true, nickname: true },
+    });
+
+    const nicknameByTarget = new Map<string, string>();
+    for (const a of aliases) {
+      const nick = clean(a.nickname);
+      if (nick) nicknameByTarget.set(a.targetUserId, nick);
+    }
 
     const today = startOfDayUTC();
     const weekStart = daysAgoUTC(6); // last 7 days inclusive
@@ -111,9 +182,7 @@ export async function GET() {
       },
     });
 
-    // Daily engagement today (seconds on report page etc.)
-    // NOTE: assumes you created model DailyEngagement with fields like:
-    // userId, day(DateTime), reportSeconds(Int)
+    // Daily engagement today
     const engagementRows = await prisma.dailyEngagement.findMany({
       where: {
         userId: { in: memberIds },
@@ -122,7 +191,6 @@ export async function GET() {
       select: {
         userId: true,
         reportViewSeconds: true,
-
       },
     });
 
@@ -145,10 +213,14 @@ export async function GET() {
     }
 
     const out = members.map((m, idx) => {
-      const userLabel =
-        (typeof m.user?.name === "string" && m.user.name.trim()) ||
-        (typeof m.user?.email === "string" && m.user.email.split("@")[0]) ||
-        `Partner ${idx + 1}`;
+      const nickname = nicknameByTarget.get(m.userId) || null;
+
+      const userLabel = computeLabel({
+        nickname,
+        name: m.user?.name ?? null,
+        email: m.user?.email ?? null,
+        fallback: `Partner ${idx + 1}`,
+      });
 
       const week = weekByUser.get(m.userId) ?? [];
       const todayC = todayByUser.get(m.userId) ?? [];
@@ -172,7 +244,7 @@ export async function GET() {
 
       return {
         userId: m.userId,
-        label: userLabel, // ✅ derived label (fixes TS error)
+        label: userLabel, // ✅ nickname -> name -> abbreviated email -> Partner X
         score: clamp(total, 0, 100),
         level: levelFor(total),
         details: {

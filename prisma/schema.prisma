@@ -59,21 +59,20 @@ model User {
   profileImageUrl String? // ✅ user-chosen avatar inside BondIQ (stable)
   timezone        String? // ✅ e.g. "America/Toronto"
 
-  emailVerified       DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
-  passwordHash        String?
-  passwordUpdatedAt   DateTime?
-  onboardingStep      Int       @default(1)
-  onboardingCompleted Boolean   @default(false)
-  planType            PlanType  @default(FREE)
-  proUntil            DateTime?
-  planUpdatedAt       DateTime  @default(now())
-  weeklyEmailEnabled Boolean @default(true)
-  weeklyEmailDay     Int     @default(0) // 0=Sunday...6=Saturday (local)
-  weeklyEmailTime    String  @default("19:00") // "HH:mm" local time
+  emailVerified         DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  passwordHash          String?
+  passwordUpdatedAt     DateTime?
+  onboardingStep        Int       @default(1)
+  onboardingCompleted   Boolean   @default(false)
+  planType              PlanType  @default(FREE)
+  proUntil              DateTime?
+  planUpdatedAt         DateTime  @default(now())
+  weeklyEmailEnabled    Boolean   @default(true)
+  weeklyEmailDay        Int       @default(0) // 0=Sunday...6=Saturday (local)
+  weeklyEmailTime       String    @default("19:00") // "HH:mm" local time
   weeklyEmailLastSentAt DateTime?
-
 
   // Auth.js / NextAuth
   accounts Account[]
@@ -91,6 +90,7 @@ model User {
   emotionSnapshots  EmotionStateSnapshot[]
   DisconnectRequest DisconnectRequest[]
   dailyEngagements  DailyEngagement[]
+  emailSendLogs     EmailSendLog[]
 }
 
 model Account {
@@ -146,6 +146,7 @@ model Couple {
   proUntil           DateTime?
   planUpdatedAt      DateTime  @default(now())
   billingOwnerUserId String?
+  reportTimeMinutes  Int       @default(540) // 09:00 local time (9*60)
 
   members                CoupleMember[]
   invites                Invite[]
@@ -477,4 +478,17 @@ model DailyEngagement {
 
   @@unique([userId, day])
   @@index([day])
+}
+
+model EmailSendLog {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String // "WEEKLY_REFLECTION"
+  dayKey    String // "YYYY-MM-DD" in couple timezone
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, dayKey])
+  @@index([type, dayKey])
 }

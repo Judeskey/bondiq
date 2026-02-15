@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import ReportScheduleCard from "./components/ReportScheduleCard";
 
 const LOVE = ["WORDS", "TIME", "GIFTS", "SERVICE", "TOUCH"] as const;
 type LoveTag = (typeof LOVE)[number];
@@ -433,22 +434,29 @@ export default function SettingsPage() {
     setProfileTimezone((prev) => prev || guessLocalTimezone());
   }, []);
 
+  const inputBase =
+    "mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus-visible:ring-2 focus-visible:ring-pink-300";
+
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-2xl font-semibold">Settings</h1>
+      <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
+
+      <div className="mt-4 space-y-4">
+        <ReportScheduleCard />
+      </div>
 
       {/* Profile */}
-      <section className="mt-6 rounded-lg border p-4">
-        <h2 className="text-lg font-semibold">Profile</h2>
-        <p className="mt-1 text-sm text-slate-700">
+      <section className="bond-card mt-6 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Profile</h2>
+        <p className="mt-1 text-sm text-slate-600">
           Update your name, BondIQ avatar, and timezone for a more personal experience.
         </p>
 
         <form className="mt-4 space-y-4" onSubmit={saveProfile}>
           <div>
-            <label className="block text-sm font-medium">Your name</label>
+            <label className="block text-sm font-medium text-slate-800">Your name</label>
             <input
-              className="mt-1 w-full rounded-md border px-3 py-2"
+              className={inputBase}
               value={profileName}
               onChange={(e) => setProfileName(e.target.value)}
               placeholder="e.g., Jane Doe"
@@ -457,17 +465,14 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium">BondIQ avatar</label>
+            <label className="block text-sm font-medium text-slate-800">BondIQ avatar</label>
 
             <div className="mt-2 flex items-center gap-3">
-              <div className="h-12 w-12 overflow-hidden rounded-full border bg-white">
+              <div className="h-12 w-12 overflow-hidden rounded-full border border-slate-200 bg-white">
                 {profileImageUrl ? (
-                  // Works for both http(s) and data:image/*
                   <img src={profileImageUrl} alt="Avatar preview" className="h-12 w-12 object-cover" />
                 ) : (
-                  <div className="flex h-12 w-12 items-center justify-center text-xs text-slate-400">
-                    —
-                  </div>
+                  <div className="flex h-12 w-12 items-center justify-center text-xs text-slate-400">—</div>
                 )}
               </div>
 
@@ -496,7 +501,7 @@ export default function SettingsPage() {
 
                 <button
                   type="button"
-                  className="w-fit rounded-md border px-3 py-1 text-sm disabled:opacity-60"
+                  className="bond-btn bond-btn-secondary w-fit"
                   disabled={!profileImageUrl}
                   onClick={() => setProfileImageUrl("")}
                 >
@@ -506,32 +511,30 @@ export default function SettingsPage() {
             </div>
 
             <div className="mt-3">
-              <label className="block text-sm font-medium">Avatar URL (optional)</label>
+              <label className="block text-sm font-medium text-slate-800">Avatar URL (optional)</label>
               <input
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className={inputBase}
                 value={isDataImageUrl(profileImageUrl) ? "" : profileImageUrl}
                 onChange={(e) => setProfileImageUrl(e.target.value)}
                 placeholder="https://..."
               />
-              <div className="mt-1 text-xs text-slate-500">
-                Upload is recommended. URL is optional.
-              </div>
+              <div className="mt-1 text-xs text-slate-500">Upload is recommended. URL is optional.</div>
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium">Timezone</label>
+            <label className="block text-sm font-medium text-slate-800">Timezone</label>
 
             <div className="mt-2 grid gap-2">
               <input
-                className="w-full rounded-md border px-3 py-2"
+                className={inputBase}
                 value={tzQuery}
                 onChange={(e) => setTzQuery(e.target.value)}
                 placeholder="Search timezone… (e.g., Toronto)"
               />
 
               <select
-                className="w-full rounded-md border px-3 py-2"
+                className={inputBase}
                 value={profileTimezone}
                 onChange={(e) => setProfileTimezone(e.target.value)}
               >
@@ -549,21 +552,23 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <button
-            disabled={savingProfile}
-            className="rounded-md bg-black px-4 py-2 text-white disabled:opacity-60"
-          >
+          <button disabled={savingProfile} className="bond-btn bond-btn-primary">
             {savingProfile ? "Saving…" : "Save profile"}
           </button>
 
-          {profileMsg && <div className="text-sm text-slate-700">{profileMsg}</div>}
+          {profileMsg ? (
+            <div className="bond-chip w-fit">
+              <span aria-hidden>ℹ️</span>
+              <span>{profileMsg}</span>
+            </div>
+          ) : null}
         </form>
       </section>
 
       {/* Partner nickname */}
-      <section className="mt-6 rounded-lg border p-4">
-        <h2 className="text-lg font-semibold">Partner nickname</h2>
-        <p className="mt-1 text-sm text-slate-700">
+      <section className="bond-card mt-6 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Partner nickname</h2>
+        <p className="mt-1 text-sm text-slate-600">
           Set a nickname for your partner (this will replace their name in your reports).
         </p>
 
@@ -577,9 +582,9 @@ export default function SettingsPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium">Nickname</label>
+              <label className="block text-sm font-medium text-slate-800">Nickname</label>
               <input
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className={inputBase}
                 value={partnerNickname}
                 onChange={(e) => setPartnerNickname(e.target.value)}
                 placeholder="e.g., Angel"
@@ -587,32 +592,42 @@ export default function SettingsPage() {
               <div className="mt-1 text-xs text-slate-500">Leave blank and save to clear.</div>
             </div>
 
-            <button
-              disabled={savingNick}
-              className="rounded-md bg-black px-4 py-2 text-white disabled:opacity-60"
-            >
+            <button disabled={savingNick} className="bond-btn bond-btn-primary">
               {savingNick ? "Saving…" : "Save nickname"}
             </button>
 
-            {nickMsg && <div className="text-sm text-slate-700">{nickMsg}</div>}
+            {nickMsg ? (
+              <div className="bond-chip w-fit">
+                <span aria-hidden>✅</span>
+                <span>{nickMsg}</span>
+              </div>
+            ) : null}
           </form>
         )}
       </section>
 
       {/* Love Profile */}
-      <section className="mt-6 rounded-lg border p-4">
-        <h2 className="text-lg font-semibold">Love Profile</h2>
-        <p className="mt-1 text-sm text-slate-700">
+      <section className="bond-card mt-6 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Love Profile</h2>
+        <p className="mt-1 text-sm text-slate-600">
           Love languages can change over time — update yours anytime.
         </p>
 
         <form className="mt-4 space-y-5" onSubmit={saveLoveProfile}>
           <div>
-            <div className="font-medium">Primary love languages (select up to 3)</div>
+            <div className="font-medium text-slate-900">Primary love languages (select up to 3)</div>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {LOVE.map((t) => (
-                <label key={t} className="flex items-center gap-2 rounded-md border px-3 py-2">
-                  <input type="checkbox" checked={primary.includes(t)} onChange={() => toggleUpTo3(setPrimary, t)} />
+                <label
+                  key={t}
+                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900"
+                >
+                  <input
+                    type="checkbox"
+                    checked={primary.includes(t)}
+                    onChange={() => toggleUpTo3(setPrimary, t)}
+                    className="h-4 w-4 accent-pink-500"
+                  />
                   <span>{labelFor(t)}</span>
                 </label>
               ))}
@@ -623,14 +638,18 @@ export default function SettingsPage() {
           </div>
 
           <div>
-            <div className="font-medium">Secondary love languages (select up to 3)</div>
+            <div className="font-medium text-slate-900">Secondary love languages (select up to 3)</div>
             <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {LOVE.map((t) => (
-                <label key={t} className="flex items-center gap-2 rounded-md border px-3 py-2">
+                <label
+                  key={t}
+                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white/70 px-3 py-2 text-sm text-slate-900"
+                >
                   <input
                     type="checkbox"
                     checked={secondary.includes(t)}
                     onChange={() => toggleUpTo3(setSecondary, t)}
+                    className="h-4 w-4 accent-violet-500"
                   />
                   <span>{labelFor(t)}</span>
                 </label>
@@ -643,9 +662,9 @@ export default function SettingsPage() {
 
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <label className="block text-sm font-medium">Avoid list (optional JSON)</label>
+              <label className="block text-sm font-medium text-slate-800">Avoid list (optional JSON)</label>
               <textarea
-                className="mt-1 w-full rounded-md border px-3 py-2"
+                className={inputBase}
                 rows={6}
                 value={avoidJson}
                 onChange={(e) => setAvoidJson(e.target.value)}
@@ -659,62 +678,74 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <button disabled={savingLove} className="rounded-md bg-black px-4 py-2 text-white disabled:opacity-60">
+          <button disabled={savingLove} className="bond-btn bond-btn-primary">
             {savingLove ? "Saving…" : "Save love profile"}
           </button>
 
-          {loveMsg && <div className="text-sm text-slate-700">{loveMsg}</div>}
+          {loveMsg ? (
+            <div className="bond-chip w-fit">
+              <span aria-hidden>✅</span>
+              <span>{loveMsg}</span>
+            </div>
+          ) : null}
         </form>
       </section>
 
       {/* Password */}
-      <section className="mt-6 rounded-lg border p-4">
-        <h2 className="text-lg font-semibold">Password</h2>
-        <p className="mt-1 text-sm text-slate-700">
+      <section className="bond-card mt-6 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Password</h2>
+        <p className="mt-1 text-sm text-slate-600">
           If you signed in with an email link, set a password here for faster sign-in next time.
         </p>
 
         <form className="mt-4 space-y-3" onSubmit={savePassword}>
           <div>
-            <label className="block text-sm font-medium">Current password (only if you already set one)</label>
+            <label className="block text-sm font-medium text-slate-800">
+              Current password (only if you already set one)
+            </label>
             <input
               type="password"
               value={currentPassword}
               onChange={(e) => setCurrentPassword(e.target.value)}
-              className="mt-1 w-full rounded-md border px-3 py-2"
+              className={inputBase}
               placeholder="Current password"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium">New password</label>
+            <label className="block text-sm font-medium text-slate-800">New password</label>
             <input
               type="password"
               required
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="mt-1 w-full rounded-md border px-3 py-2"
+              className={inputBase}
               placeholder="At least 8 characters"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium">Confirm new password</label>
+            <label className="block text-sm font-medium text-slate-800">Confirm new password</label>
             <input
               type="password"
               required
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
-              className="mt-1 w-full rounded-md border px-3 py-2"
+              className={inputBase}
               placeholder="Repeat new password"
             />
           </div>
 
-          <button disabled={loading} className="w-full rounded-md bg-black px-4 py-2 text-white disabled:opacity-60">
+          <button disabled={loading} className="bond-btn bond-btn-primary w-full">
             {loading ? "Saving…" : "Save password"}
           </button>
 
-          {msg && <div className="text-sm text-slate-700">{msg}</div>}
+          {msg ? (
+            <div className="bond-chip w-fit">
+              <span aria-hidden>ℹ️</span>
+              <span>{msg}</span>
+            </div>
+          ) : null}
         </form>
       </section>
     </main>
