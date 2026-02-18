@@ -6,9 +6,50 @@ import { Toaster } from "react-hot-toast";
 import GoogleAnalytics from "@/app/components/GoogleAnalytics";
 
 export const metadata: Metadata = {
-  title: "BondIQ — Relationship intelligence, made human",
-  description: "Gentle, practical weekly reflections for real couples.",
+  // ✅ SEO-optimized titles
+  title: {
+    default: "BondIQ — Relationship Intelligence App for Couples",
+    template: "%s | BondIQ",
+  },
+
+  description:
+    "BondIQ is a relationship intelligence app for couples. Weekly reflections, emotional insights, gratitude vault, and gentle repair suggestions to build stronger relationships.",
+
   applicationName: "BondIQ",
+
+  // ✅ Keywords help search engines understand context
+  keywords: [
+    "relationship app",
+    "couples app",
+    "relationship check-in app",
+    "relationship tracker for couples",
+    "marriage improvement app",
+    "couples journal",
+    "relationship insights",
+  ],
+
+  // ✅ Required for proper canonical URLs
+  metadataBase: new URL("https://bondiq.app"),
+
+  // ✅ PWA
+  manifest: "/manifest.json",
+  themeColor: "#ec4899",
+
+  // ✅ OpenGraph (social previews + SEO signal)
+  openGraph: {
+    title: "BondIQ — Relationship Intelligence for Couples",
+    description:
+      "Turn small check-ins into calm clarity. Insights, gratitude, and gentle repair suggestions for real couples.",
+    url: "https://bondiq.app",
+    siteName: "BondIQ",
+    type: "website",
+  },
+
+  // ✅ Robots directives
+  robots: {
+    index: true,
+    follow: true,
+  },
 
   icons: {
     icon: [{ url: "/favicon.ico" }],

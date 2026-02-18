@@ -4,9 +4,29 @@ import PricingClient from "./PricingClient";
 import SiteFooter from "@/app/components/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "Pricing — BondIQ",
+  title: "BondIQ Pricing — Relationship App for Couples",
   description:
-    "Choose the plan that fits your relationship journey. Upgrade to Premium for partner visibility, deeper insights, and more.",
+    "Explore BondIQ pricing. Start free or upgrade to Premium for deeper relationship insights, partner visibility, gratitude vault, and weekly reflections for couples.",
+
+  keywords: [
+    "relationship app pricing",
+    "couples app pricing",
+    "relationship tracker cost",
+    "marriage app subscription",
+    "couples relationship app price",
+  ],
+
+  openGraph: {
+    title: "BondIQ Pricing — Relationship Intelligence for Couples",
+    description:
+      "See BondIQ plans and pricing. Upgrade to Premium for deeper insights and relationship growth tools.",
+    url: "https://bondiq.app/pricing",
+    type: "website",
+  },
+
+  alternates: {
+    canonical: "https://bondiq.app/pricing",
+  },
 };
 
 export default function PricingPage({

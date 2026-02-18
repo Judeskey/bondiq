@@ -77,7 +77,6 @@ export default async function AppHome() {
 
   // Safety fallback (should be rare)
   if (!me) {
-    // requireUserOrRedirect normally handles auth, but keep safe UI here
     return (
       <main className="mx-auto w-full max-w-4xl px-4 pb-16 pt-10">
         <h1 className="text-2xl font-semibold text-slate-900">Welcome to BondIQ</h1>
@@ -172,7 +171,9 @@ export default async function AppHome() {
   const displayName = (me.name || me.email || "there").trim();
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 pb-20 pt-10">
+    // ✅ Mobile: smaller top padding so no “empty space”. Desktop unchanged.
+    // ✅ Mobile: larger bottom padding so content never hides behind bottom tabs.
+    <main className="mx-auto w-full max-w-6xl px-4 pb-24 pt-4 sm:pb-20 sm:pt-10">
       {/* Header */}
       <section className="rounded-[28px] border border-slate-200 bg-white/70 p-7 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -209,9 +210,7 @@ export default async function AppHome() {
         <div className="mt-6 grid gap-3 md:grid-cols-3">
           <SoftBox>
             <div className="text-xs font-semibold text-slate-700">This week</div>
-            <div className="mt-1 text-sm font-semibold text-slate-900">
-              {fmtDate(weekStart)} →
-            </div>
+            <div className="mt-1 text-sm font-semibold text-slate-900">{fmtDate(weekStart)} →</div>
             <div className="mt-1 text-xs text-slate-500">
               BondIQ uses a Monday-start week for your reflections.
             </div>
@@ -329,9 +328,7 @@ export default async function AppHome() {
               </li>
             </ul>
 
-            <div className="mt-4 text-xs text-slate-500">
-              Private by default. You control what is shared.
-            </div>
+            <div className="mt-4 text-xs text-slate-500">Private by default. You control what is shared.</div>
           </div>
         </div>
       </section>

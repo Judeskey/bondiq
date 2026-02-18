@@ -1,11 +1,63 @@
-export const metadata = { title: "FAQ • BondIQ" };
+// app/faq/page.tsx
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "FAQ • BondIQ",
+  description:
+    "Frequently asked questions about BondIQ — how it works, privacy, subscriptions, and support for couples using BondIQ.",
+  alternates: {
+    canonical: "/faq",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: "website",
+    url: "/faq",
+    title: "BondIQ FAQ",
+    description:
+      "Answers to common questions about BondIQ, relationship insights, privacy, and subscriptions.",
+    siteName: "BondIQ",
+    images: [
+      {
+        url: "/landing/couple-hero.png",
+        width: 1200,
+        height: 630,
+        alt: "BondIQ — Relationship intelligence, made human",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "BondIQ FAQ",
+    description:
+      "Common questions about BondIQ, privacy, and Premium features.",
+    images: ["/landing/couple-hero.png"],
+  },
+};
 
 const FAQS = [
-  { q: "What is BondIQ?", a: "BondIQ turns short check-ins into weekly relationship insights and reflections." },
-  { q: "Is my data private?", a: "We treat your relationship data as sensitive. See our Privacy Policy for details." },
-  { q: "How does Premium work?", a: "Premium unlocks deeper patterns, longer trends, and enhanced insights." },
-  { q: "Can I cancel anytime?", a: "Yes. You can cancel your subscription from your account settings." },
-  { q: "How do I contact support?", a: "Use the Support page to send feedback or complaints." },
+  {
+    q: "What is BondIQ?",
+    a: "BondIQ turns short check-ins into weekly relationship insights and reflections.",
+  },
+  {
+    q: "Is my data private?",
+    a: "We treat your relationship data as sensitive. See our Privacy Policy for details.",
+  },
+  {
+    q: "How does Premium work?",
+    a: "Premium unlocks deeper patterns, longer trends, and enhanced insights.",
+  },
+  {
+    q: "Can I cancel anytime?",
+    a: "Yes. You can cancel your subscription from your account settings.",
+  },
+  {
+    q: "How do I contact support?",
+    a: "Use the Support page to send feedback or complaints.",
+  },
 ];
 
 export default function FAQPage() {

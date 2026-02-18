@@ -1,8 +1,49 @@
 // app/signin/page.tsx
+import type { Metadata } from "next";
 import Image from "next/image";
 import SignInClient from "./sign-in-client";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "Sign in • BondIQ",
+  description:
+    "Sign in to BondIQ to access your weekly relationship reflections, insights, and gratitude vault.",
+
+  alternates: {
+    canonical: "/signin",
+  },
+
+  robots: {
+    index: false, // ❗ signin pages should not be indexed
+    follow: false,
+  },
+
+  openGraph: {
+    type: "website",
+    url: "/signin",
+    title: "Sign in to BondIQ",
+    description:
+      "Access your BondIQ relationship insights and weekly reflections.",
+    siteName: "BondIQ",
+    images: [
+      {
+        url: "/landing/couple-hero.png",
+        width: 1200,
+        height: 630,
+        alt: "BondIQ — Relationship intelligence, made human",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Sign in • BondIQ",
+    description:
+      "Sign in to access your BondIQ reflections and insights.",
+    images: ["/landing/couple-hero.png"],
+  },
+};
 
 type Props = {
   searchParams?: {

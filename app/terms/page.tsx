@@ -1,7 +1,42 @@
 // app/terms/page.tsx
+import type { Metadata } from "next";
 import SiteFooter from "@/app/components/SiteFooter";
 
-export const metadata = { title: "Terms of Service • BondIQ" };
+export const metadata: Metadata = {
+  title: "Terms of Service • BondIQ",
+  description:
+    "BondIQ Terms of Service: account responsibilities, subscriptions, acceptable use, and important disclaimers for relationship reflection tools.",
+  alternates: {
+    canonical: "/terms",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: "website",
+    url: "/terms",
+    title: "Terms of Service • BondIQ",
+    description:
+      "Read BondIQ’s terms covering use of the service, accounts, subscriptions, and disclaimers.",
+    siteName: "BondIQ",
+    images: [
+      {
+        url: "/landing/couple-hero.png",
+        width: 1200,
+        height: 630,
+        alt: "BondIQ — Relationship intelligence, made human",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Terms of Service • BondIQ",
+    description:
+      "BondIQ’s terms: use of the service, subscriptions, and disclaimers.",
+    images: ["/landing/couple-hero.png"],
+  },
+};
 
 export default function TermsPage() {
   return (

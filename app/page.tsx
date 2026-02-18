@@ -1,10 +1,56 @@
 // app/page.tsx
+import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { cookies } from "next/headers";
 import LandingCtas from "./_components/LandingCtas";
 import SiteFooter from "@/app/components/SiteFooter";
 
+export const metadata: Metadata = {
+  title: "BondIQ — Relationship Intelligence App for Couples",
+  description:
+    "BondIQ helps couples turn small weekly check-ins into calm clarity. Get a gentle weekly reflection, relationship insights, gratitude vault, and practical repair suggestions — built for real couples.",
+
+  keywords: [
+    "relationship app",
+    "couples app",
+    "relationship check-in app",
+    "relationship tracker for couples",
+    "weekly couples check-in",
+    "marriage improvement app",
+    "relationship insights",
+    "gratitude journal for couples",
+  ],
+
+  alternates: {
+    canonical: "https://bondiq.app/",
+  },
+
+  openGraph: {
+    title: "BondIQ — Relationship Intelligence for Couples",
+    description:
+      "Turn tiny weekly check-ins into calm clarity. Weekly reflections, deeper insights, gratitude vault, and gentle repair suggestions for real couples.",
+    url: "https://bondiq.app/",
+    siteName: "BondIQ",
+    type: "website",
+    images: [
+      {
+        url: "https://bondiq.app/og.png",
+        width: 1200,
+        height: 630,
+        alt: "BondIQ — Relationship intelligence, made human",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "BondIQ — Relationship Intelligence for Couples",
+    description:
+      "Weekly reflections + gentle relationship insights for real couples. Start free.",
+    images: ["https://bondiq.app/og.png"],
+  },
+};
 
 type VariantKey = "A" | "B" | "C";
 
@@ -348,7 +394,6 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="mx-auto mt-10 max-w-5xl px-1 text-xs text-slate-500">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          
           <span className="flex items-center gap-3">
             <SiteFooter />
           </span>

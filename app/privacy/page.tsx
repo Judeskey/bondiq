@@ -1,5 +1,45 @@
 // app/privacy/page.tsx
-export const metadata = { title: "Privacy Policy • BondIQ" };
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Privacy Policy • BondIQ",
+  description:
+    "BondIQ’s Privacy Policy explains what data we collect, how we use it, and your choices. We treat relationship data as sensitive and prioritize your privacy.",
+
+  alternates: {
+    canonical: "/privacy",
+  },
+
+  robots: {
+    index: true,
+    follow: true,
+  },
+
+  openGraph: {
+    type: "website",
+    url: "/privacy",
+    title: "Privacy Policy • BondIQ",
+    description:
+      "Learn how BondIQ protects your data and handles sensitive relationship information.",
+    siteName: "BondIQ",
+    images: [
+      {
+        url: "/landing/couple-hero.png",
+        width: 1200,
+        height: 630,
+        alt: "BondIQ — Relationship intelligence, made human",
+      },
+    ],
+  },
+
+  twitter: {
+    card: "summary_large_image",
+    title: "Privacy Policy • BondIQ",
+    description:
+      "How BondIQ collects, uses, and protects your relationship data.",
+    images: ["/landing/couple-hero.png"],
+  },
+};
 
 export default function PrivacyPage() {
   return (

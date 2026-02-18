@@ -1,7 +1,42 @@
 // app/compliance/page.tsx
+import type { Metadata } from "next";
 import SiteFooter from "@/app/components/SiteFooter";
 
-export const metadata = { title: "Compliance & Safety • BondIQ" };
+export const metadata: Metadata = {
+  title: "Compliance & Safety • BondIQ",
+  description:
+    "How BondIQ protects sensitive relationship data, explains AI-generated insights, and provides clear support paths for security, privacy, and account misuse concerns.",
+  alternates: {
+    canonical: "/compliance",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  openGraph: {
+    type: "website",
+    url: "/compliance",
+    title: "Compliance & Safety • BondIQ",
+    description:
+      "Learn how BondIQ handles sensitive relationship data, AI transparency, abuse prevention, and how to contact support.",
+    siteName: "BondIQ",
+    images: [
+      {
+        url: "/landing/couple-hero.png",
+        width: 1200,
+        height: 630,
+        alt: "BondIQ — Relationship intelligence, made human",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Compliance & Safety • BondIQ",
+    description:
+      "BondIQ’s safety and compliance overview: data protection, AI transparency, abuse prevention, and support.",
+    images: ["/landing/couple-hero.png"],
+  },
+};
 
 export default function CompliancePage() {
   return (
