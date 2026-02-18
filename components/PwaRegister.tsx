@@ -1,3 +1,4 @@
+// app/app/components/PwaRegister.tsx (or your actual path)
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -173,10 +174,7 @@ export default function PwaRegister() {
               </button>
             )}
 
-            <button
-              onClick={dismiss}
-              className="border px-3 py-2 rounded-lg text-sm font-semibold"
-            >
+            <button onClick={dismiss} className="border px-3 py-2 rounded-lg text-sm font-semibold">
               Not now
             </button>
           </div>
