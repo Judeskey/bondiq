@@ -497,20 +497,19 @@ export default function ReportsPage() {
           <div>
             {/* ✅ Title row with badge pinned to the extreme right (mobile-safe) */}
             <div className="flex items-start justify-between gap-3 w-full">
-            <h1 className="text-2xl font-semibold tracking-tight min-w-0">
+              <h1 className="text-2xl font-semibold tracking-tight min-w-0">
                 Your Weekly{" "}
                 <span className="bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">
-                BondIQ
+                  BondIQ
                 </span>{" "}
                 Report 💞
-            </h1>
+              </h1>
 
-            {/* stays on the extreme right (desktop + mobile), never pushes content weirdly */}
-            <div className="shrink-0">
+              {/* stays on the extreme right (desktop + mobile), never pushes content weirdly */}
+              <div className="shrink-0">
                 <PlanStatusBadge className="mt-0" showManageButton={false} />
+              </div>
             </div>
-            </div>
-
 
             <p className="text-slate-600 text-sm mt-1">
               Gentle insights to help your love grow stronger.
@@ -543,7 +542,8 @@ export default function ReportsPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* ✅ FIX: allow wrap on small screens so "Refresh" never overflows */}
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
             <a href="/settings/privacy" className="bond-btn bond-btn-secondary">
               Privacy
             </a>
@@ -731,7 +731,9 @@ export default function ReportsPage() {
                     <div>{renderRichText(view.narrative.overall.summary)}</div>
 
                     {view?.narrative?.overall?.reflection && (
-                      <div className="text-slate-700">{renderRichText(view.narrative.overall.reflection)}</div>
+                      <div className="text-slate-700">
+                        {renderRichText(view.narrative.overall.reflection)}
+                      </div>
                     )}
 
                     {Array.isArray(view?.narrative?.overall?.coaching) &&
@@ -942,8 +944,7 @@ export default function ReportsPage() {
                       <div className="mt-2 text-slate-600 text-sm">
                         {checkins > 0
                           ? "Next actions appear after we detect patterns (usually 2–3 check-ins)."
-                          : "Complete a check-in to unlock personalized next actions."
-                        }
+                          : "Complete a check-in to unlock personalized next actions."}
                       </div>
                     )}
                   </div>

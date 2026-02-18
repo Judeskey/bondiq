@@ -97,29 +97,26 @@ export default function CheckinPage() {
 
   return (
     <main className="max-w-2xl mx-auto p-6">
-        <div className="mb-6">
-            {/* Top row: title left, button right */}
-            <div className="flex items-start justify-between">
-                <div>
-                <h1 className="text-2xl font-semibold">Weekly Check-In</h1>
+      <div className="mb-6">
+        {/* Top row: title left, button right */}
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold">Weekly Check-In</h1>
 
-                <p className="mt-2 text-sm text-gray-600 flex items-center gap-2 italic">
-                    <span>💛</span>
-                    <span>A moment to reflect on your day together.</span>
-                </p>
-                </div>
+            <p className="mt-2 text-sm text-gray-600 flex items-center gap-2 italic">
+              <span>💛</span>
+              <span>A moment to reflect on your day together.</span>
+            </p>
+          </div>
 
-                <Link
-                href="/app/reports"
-                className="text-sm rounded-lg border px-3 py-1.5 hover:bg-slate-50 whitespace-nowrap"
-                >
-                Back to reports
-                </Link>
-            </div>
+          <Link
+            href="/app/reports"
+            className="text-sm rounded-lg border px-3 py-1.5 hover:bg-slate-50 whitespace-nowrap"
+          >
+            Back to reports
+          </Link>
         </div>
-
-
-        
+      </div>
 
       <div className="mt-6 space-y-6 border p-4 rounded-lg">
         <div>
@@ -174,7 +171,7 @@ export default function CheckinPage() {
           <button
             onClick={submit}
             disabled={saving}
-            className="w-fit rounded-md bg-black px-4 py-2 text-white disabled:opacity-60"
+            className="w-fit rounded-md bg-[#ec4899] px-4 py-2 text-white disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save check-in"}
           </button>
