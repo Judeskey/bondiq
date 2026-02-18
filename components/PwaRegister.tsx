@@ -30,11 +30,51 @@ export default function PwaRegister() {
   const [show, setShow] = useState(false);
   const engaged = useRef(false);
 
-  // ✅ Service worker registration (kept from your original)
+  // ✅ Only register SW in production AND on HTTPS (or localhost is ok).
+  // ✅ Also “self-heal” old broken service workers from previous builds.
   useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch(() => {});
+    if (typeof window === "undefined") return;
+
+    const isLocalhost =
+      window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
+
+    const isSecure = window.location.protocol === "https:" || isLocalhost;
+
+    // Don’t register in dev to avoid the app-build-manifest 404 + caching weirdness.
+    const isProd = process.env.NODE_ENV === "production";
+
+    if (!("serviceWorker" in navigator)) return;
+    if (!isSecure) return;
+
+    if (!isProd) {
+      // In dev: make sure we are not using an old SW that was registered before.
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        regs.forEach((r) => r.unregister().catch(() => {}));
+      });
+      return;
     }
+
+    (async () => {
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        // Unregister any old SWs from workbox/next-pwa etc.
+        await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
+
+        // Register our minimal SW
+        await navigator.serviceWorker.register("/sw.js", { scope: "/" });
+
+        // Optional: reload once if we had old SWs, to clear “stuck loading”.
+        if (regs.length > 0) {
+          setTimeout(() => {
+            try {
+              window.location.reload();
+            } catch {}
+          }, 300);
+        }
+      } catch {
+        // swallow
+      }
+    })();
   }, []);
 
   const canShow = useMemo(() => {
@@ -109,10 +149,7 @@ export default function PwaRegister() {
           <Image src="/logo.png" alt="BondIQ" width={28} height={28} />
           <div className="text-sm font-semibold">Install BondIQ</div>
 
-          <button
-            onClick={dismiss}
-            className="ml-auto text-slate-400 hover:text-slate-600"
-          >
+          <button onClick={dismiss} className="ml-auto text-slate-400 hover:text-slate-600">
             ✕
           </button>
         </div>
