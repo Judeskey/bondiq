@@ -12,6 +12,7 @@ import Link from "next/link";
 import CommitmentCandles from "./components/CommitmentCandles";
 
 import ReportEngagementTracker from "./components/ReportEngagementTracker";
+import PlanStatusBadge from "@/app/components/PlanStatusBadge";
 
 type Report = {
   id: string;
@@ -157,14 +158,6 @@ function normalizeBondScore(raw: any) {
   };
 }
 
-function normalizeMetricLabel(x: any) {
-  if (x == null) return "—";
-  if (typeof x === "string") return x;
-  if (typeof x?.label === "string") return x.label;
-  if (typeof x?.name === "string") return x.name;
-  return "—";
-}
-
 function formatBreakdownValue(v: any) {
   if (v == null) return "—";
   if (typeof v === "number" && Number.isFinite(v)) return String(v);
@@ -262,47 +255,39 @@ function buildWeekComparisonLine(view: any) {
   }
   return `Compared to last week, your connection looks **down ${delta}** on average — not failure, just a signal to slow down and reconnect.`;
 }
+
 function possessive(name: string) {
-    const n = (name || "").trim();
-    if (!n) return "Your";
-    // e.g. "James" -> "James’", "Angel" -> "Angel’s"
-    return n.endsWith("s") ? `${n}’` : `${n}’s`;
-  }
-  
-  /**
-   * Turn 3rd-person partner-summary bullets into app-friendly copy:
-   * - "Their week averaged..." -> "Your week averaged..." (viewer) OR "Angel’s week averaged..."
-   * - "Their recent check-ins..." -> "Your recent check-ins..." OR "Angel’s recent check-ins..."
-   * - "how connected they felt" -> "how connected you felt" OR "how connected Angel felt"
-   */
-  function personalizePartnerCopy(line: unknown, opts: { isViewer: boolean; displayName: string }) {
-    const raw = asText(line);
-    if (!raw) return raw;
-  
-    const { isViewer, displayName } = opts;
-    const subjPoss = isViewer ? "Your" : possessive(displayName);
-    const subjName = isViewer ? "you" : (displayName || "they");
-  
-    let s = raw.trim();
-  
-    // Starts of sentences (most common in your screenshots)
-    s = s.replace(/^Their\b/gi, subjPoss);
-    s = s.replace(/^They\b/gi, isViewer ? "You" : displayName || "They");
-  
-    // Inside the sentence
-    s = s.replace(/\btheir\b/gi, isViewer ? "your" : `${subjPoss.toLowerCase()}`);
-    s = s.replace(/\bthey\b/gi, isViewer ? "you" : subjName);
-    s = s.replace(/\bthem\b/gi, isViewer ? "you" : subjName);
-  
-    // Very common phrase in your highlight bullet
-    s = s.replace(/how connected they felt/gi, isViewer ? "how connected you felt" : `how connected ${displayName} felt`);
-  
-    // Optional: make it feel warmer (keep it subtle)
-    s = s.replace(/\ba solid snapshot\b/gi, "a warm snapshot");
-  
-    return s;
+  const n = (name || "").trim();
+  if (!n) return "Your";
+  return n.endsWith("s") ? `${n}’` : `${n}’s`;
 }
-  
+
+function personalizePartnerCopy(line: unknown, opts: { isViewer: boolean; displayName: string }) {
+  const raw = asText(line);
+  if (!raw) return raw;
+
+  const { isViewer, displayName } = opts;
+  const subjPoss = isViewer ? "Your" : possessive(displayName);
+  const subjName = isViewer ? "you" : displayName || "they";
+
+  let s = raw.trim();
+
+  s = s.replace(/^Their\b/gi, subjPoss);
+  s = s.replace(/^They\b/gi, isViewer ? "You" : displayName || "They");
+
+  s = s.replace(/\btheir\b/gi, isViewer ? "your" : `${subjPoss.toLowerCase()}`);
+  s = s.replace(/\bthey\b/gi, isViewer ? "you" : subjName);
+  s = s.replace(/\bthem\b/gi, isViewer ? "you" : subjName);
+
+  s = s.replace(
+    /how connected they felt/gi,
+    isViewer ? "how connected you felt" : `how connected ${displayName} felt`
+  );
+
+  s = s.replace(/\ba solid snapshot\b/gi, "a warm snapshot");
+
+  return s;
+}
 
 export default function ReportsPage() {
   const [loading, setLoading] = useState(true);
@@ -314,6 +299,13 @@ export default function ReportsPage() {
   const [coupleInfo, setCoupleInfo] = useState<CoupleInfo | null>(null);
   const [hasCheckedInToday, setHasCheckedInToday] = useState<boolean | null>(null);
   const [hideCheckinNudge, setHideCheckinNudge] = useState(false);
+
+  function gaEvent(name: string, params?: Record<string, any>) {
+    if (typeof window === "undefined") return;
+    const gtag = (window as any).gtag;
+    if (typeof gtag !== "function") return;
+    gtag("event", name, params || {});
+  }
 
   async function runBootstrapOrRedirect(): Promise<boolean> {
     try {
@@ -503,13 +495,22 @@ export default function ReportsPage() {
       <section className="bond-card p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Your Weekly{" "}
-              <span className="bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">
+            {/* ✅ Title row with badge pinned to the extreme right (mobile-safe) */}
+            <div className="flex items-start justify-between gap-3 w-full">
+            <h1 className="text-2xl font-semibold tracking-tight min-w-0">
+                Your Weekly{" "}
+                <span className="bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">
                 BondIQ
-              </span>{" "}
-              Report 💞
+                </span>{" "}
+                Report 💞
             </h1>
+
+            {/* stays on the extreme right (desktop + mobile), never pushes content weirdly */}
+            <div className="shrink-0">
+                <PlanStatusBadge className="mt-0" showManageButton={false} />
+            </div>
+            </div>
+
 
             <p className="text-slate-600 text-sm mt-1">
               Gentle insights to help your love grow stronger.
@@ -634,12 +635,10 @@ export default function ReportsPage() {
               </div>
             </div>
 
-            {/* Commitment Candles */}
             <div className="mt-5">
               <CommitmentCandles />
             </div>
 
-            {/* Relationship Pulse */}
             <div className="mt-5 bond-card p-5">
               <div className="text-sm text-slate-600">Relationship Pulse</div>
 
@@ -687,6 +686,12 @@ export default function ReportsPage() {
                 windowDays={28}
                 members={coupleInfo?.members || []}
                 onUpgrade={() => {
+                  gaEvent("upgrade_navigation_started", {
+                    location: "reports_insights_panel",
+                    destination: "/pricing",
+                    feature: "deep_insights",
+                    window_days: 28,
+                  });
                   window.location.href = "/pricing";
                 }}
               />
@@ -696,6 +701,11 @@ export default function ReportsPage() {
               <SuggestionsPanel
                 breakdown={breakdown}
                 onUpgrade={() => {
+                  gaEvent("upgrade_navigation_started", {
+                    location: "reports_suggestions_panel",
+                    destination: "/pricing",
+                    feature: "repair_suggestions",
+                  });
                   window.location.href = "/pricing";
                 }}
               />
@@ -865,19 +875,15 @@ export default function ReportsPage() {
                     {highlights.length > 0 ? (
                       <ul className="list-disc pl-5 mt-2 text-slate-700 space-y-1">
                         {highlights.map((x: any, i: number) => (
-                            <li
-                                key={i}
-                                className="leading-relaxed"
-                            >
-                                {renderRichText(
-                                personalizePartnerCopy(x, {
-                                    isViewer: Boolean(coupleInfo && p.userId === coupleInfo.viewerUserId),
-                                    displayName: title, // already computed in your code
-                                })
-                                )}
-                            </li>
+                          <li key={i} className="leading-relaxed">
+                            {renderRichText(
+                              personalizePartnerCopy(x, {
+                                isViewer: Boolean(coupleInfo && p.userId === coupleInfo.viewerUserId),
+                                displayName: title,
+                              })
+                            )}
+                          </li>
                         ))}
-
                       </ul>
                     ) : (
                       <div className="mt-2 text-slate-600 text-sm">
@@ -893,16 +899,15 @@ export default function ReportsPage() {
                     {loved.length > 0 ? (
                       <ul className="list-disc pl-5 mt-2 text-slate-700 space-y-1">
                         {loved.map((x: any, i: number) => (
-                        <li key={i} className="leading-relaxed">
+                          <li key={i} className="leading-relaxed">
                             {renderRichText(
-                            personalizePartnerCopy(x, {
+                              personalizePartnerCopy(x, {
                                 isViewer: Boolean(coupleInfo && p.userId === coupleInfo.viewerUserId),
                                 displayName: title,
-                            })
+                              })
                             )}
-                        </li>
+                          </li>
                         ))}
-
                       </ul>
                     ) : (
                       <div className="mt-2 text-slate-600 text-sm">
@@ -923,14 +928,13 @@ export default function ReportsPage() {
                               {a.tag ? tagLabel(asText(a.tag)) : "Suggestion"}
                             </div>
                             <div className="text-slate-800 leading-relaxed">
-                                {renderRichText(
-                                    personalizePartnerCopy(a.suggestion, {
-                                    isViewer: Boolean(coupleInfo && p.userId === coupleInfo.viewerUserId),
-                                    displayName: title,
-                                    })
-                                )}
+                              {renderRichText(
+                                personalizePartnerCopy(a.suggestion, {
+                                  isViewer: Boolean(coupleInfo && p.userId === coupleInfo.viewerUserId),
+                                  displayName: title,
+                                })
+                              )}
                             </div>
-
                           </div>
                         ))}
                       </div>
@@ -938,7 +942,8 @@ export default function ReportsPage() {
                       <div className="mt-2 text-slate-600 text-sm">
                         {checkins > 0
                           ? "Next actions appear after we detect patterns (usually 2–3 check-ins)."
-                          : "Complete a check-in to unlock personalized next actions."}
+                          : "Complete a check-in to unlock personalized next actions."
+                        }
                       </div>
                     )}
                   </div>

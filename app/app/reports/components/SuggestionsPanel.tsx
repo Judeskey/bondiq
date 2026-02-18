@@ -1,4 +1,3 @@
-// app/app/reports/components/SuggestionsPanel.tsx
 "use client";
 
 import { useMemo, useState } from "react";
@@ -83,7 +82,22 @@ export default function SuggestionsPanel({
 
   const why = useMemo(() => whyText(breakdown ?? {}), [breakdown]);
 
+  function gaEvent(name: string, params?: Record<string, any>) {
+    if (typeof window === "undefined") return;
+    const gtag = (window as any).gtag;
+    if (typeof gtag !== "function") return;
+    gtag("event", name, params || {});
+  }
+
   async function generate() {
+    // ✅ Track suggestion generation click (doesn't affect flow)
+    gaEvent("suggestion_generate_click", {
+      location: "reports_suggestions_panel",
+      has_existing_suggestion: !!suggestion,
+      entitlement: premium ? "premium" : "free",
+      focus: pickFocus(breakdown ?? {}).focus,
+    });
+
     setLoading(true);
     setError("");
 
@@ -99,8 +113,22 @@ export default function SuggestionsPanel({
       if (!res.ok) {
         if (res.status === 403 && data?.upgrade) {
           setError(data?.error ?? "You’ve reached this week’s limit. Upgrade for unlimited suggestions.");
+
+          // ✅ Track paywall hit (helpful for conversion analysis)
+          gaEvent("suggestion_paywall_shown", {
+            location: "reports_suggestions_panel",
+            entitlement: "free",
+            remaining: data?.remaining ?? null,
+            focus: pickFocus(breakdown ?? {}).focus,
+          });
         } else {
           setError(data?.error ?? "We couldn’t create a suggestion right now. Please try again.");
+
+          gaEvent("suggestion_generate_error", {
+            location: "reports_suggestions_panel",
+            status: res.status,
+            focus: pickFocus(breakdown ?? {}).focus,
+          });
         }
         setPremium(!!data?.premium);
         setRemaining(data?.remaining ?? null);
@@ -110,8 +138,22 @@ export default function SuggestionsPanel({
       setSuggestion(String(data?.suggestion ?? ""));
       setPremium(!!data?.premium);
       setRemaining(data?.remaining ?? null);
+
+      // ✅ Track success
+      gaEvent("suggestion_generate_success", {
+        location: "reports_suggestions_panel",
+        entitlement: data?.premium ? "premium" : "free",
+        remaining: data?.remaining ?? null,
+        focus: pickFocus(breakdown ?? {}).focus,
+      });
     } catch {
       setError("Network error. Please try again.");
+
+      gaEvent("suggestion_generate_error", {
+        location: "reports_suggestions_panel",
+        status: "network_error",
+        focus: pickFocus(breakdown ?? {}).focus,
+      });
     } finally {
       setLoading(false);
     }
@@ -158,12 +200,30 @@ export default function SuggestionsPanel({
           <div className="mt-1">{error}</div>
 
           <div className="mt-3 flex gap-2">
-            <button onClick={generate} className="bond-btn bond-btn-secondary">
+            <button
+              onClick={() => {
+                gaEvent("suggestion_try_again_click", {
+                  location: "reports_suggestions_panel",
+                  focus: pickFocus(breakdown ?? {}).focus,
+                });
+                generate();
+              }}
+              className="bond-btn bond-btn-secondary"
+            >
               Try again
             </button>
 
             <button
-              onClick={() => onUpgrade?.()}
+              onClick={() => {
+                // ✅ Track upgrade CTA click from paywall
+                gaEvent("upgrade_click", {
+                  location: "reports_suggestions_panel_paywall",
+                  source: "suggestion_limit",
+                  focus: pickFocus(breakdown ?? {}).focus,
+                });
+
+                onUpgrade?.();
+              }}
               className="bond-btn bond-btn-primary"
             >
               Upgrade

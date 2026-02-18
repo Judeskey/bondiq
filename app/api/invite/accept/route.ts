@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/requireUser";
+import bcrypt from "bcryptjs";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,28 +12,186 @@ function sha256(input: string) {
   return crypto.createHash("sha256").update(input).digest("hex");
 }
 
-export async function POST(req: Request) {
-  const { userId, email } = await requireUser();
+type AcceptResult =
+  | {
+      ok: true;
+      coupleId: string;
+      code:
+        | "JOINED"
+        | "ALREADY_IN_TARGET"
+        | "INVITE_ALREADY_ACCEPTED"
+        | "PLACEHOLDER_REPLACED";
+      blocked?: false;
+      // non-breaking optional hints:
+      createdUser?: boolean;
+      shouldSignInWithCredentials?: boolean;
+    }
+  | {
+      ok: false;
+      code:
+        | "MISSING_TOKEN"
+        | "INVALID_INVITE"
+        | "INVITE_EXPIRED"
+        | "EMAIL_MISMATCH"
+        | "ALREADY_IN_OTHER_COUPLE"
+        | "SERVER_ERROR";
+      error: string;
+      status: number;
+      blocked?: boolean;
+      coupleId?: string;
+    };
 
+async function tryGetAuthUser(): Promise<{ userId: string; email: string } | null> {
+  try {
+    const u = await requireUser();
+    if (!u?.userId || !u?.email) return null;
+    return { userId: u.userId, email: u.email };
+  } catch {
+    return null;
+  }
+}
+
+export async function POST(req: Request) {
   const body = await req.json().catch(() => ({}));
   const token = String(body?.token || "").trim();
-  if (!token) return NextResponse.json({ error: "Missing token" }, { status: 400 });
+
+  if (!token) {
+    const out: AcceptResult = {
+      ok: false,
+      code: "MISSING_TOKEN",
+      error: "Missing token",
+      status: 400,
+    };
+    return NextResponse.json(out, { status: out.status });
+  }
+
+  // ✅ Mode A: Signed-in user (existing behavior)
+  // ✅ Mode B: Guest accept (create/find user + join) — no magic link required
+  const authed = await tryGetAuthUser();
+
+  let userId = authed?.userId || "";
+  let email = authed?.email || "";
+
+  // Guest accept inputs
+  const guestEmail =
+    typeof body?.email === "string" ? body.email.trim().toLowerCase() : "";
+  const guestPassword = typeof body?.password === "string" ? body.password : "";
+  const guestName =
+    typeof body?.name === "string" ? body.name.trim().slice(0, 80) : null;
+
+  const isGuestMode = !authed;
+
+  if (isGuestMode) {
+    if (!guestEmail) {
+      const out: AcceptResult = {
+        ok: false,
+        code: "SERVER_ERROR",
+        error: "Missing email",
+        status: 400,
+      };
+      return NextResponse.json(out, { status: out.status });
+    }
+    if (!guestPassword || guestPassword.length < 8) {
+      const out: AcceptResult = {
+        ok: false,
+        code: "SERVER_ERROR",
+        error: "Password must be at least 8 characters",
+        status: 400,
+      };
+      return NextResponse.json(out, { status: out.status });
+    }
+
+    email = guestEmail;
+  }
 
   const tokenHash = sha256(token);
   const now = new Date();
 
-  const result = await prisma.$transaction(async (tx) => {
+  let createdUser = false;
+
+  const result: AcceptResult = await prisma.$transaction(async (tx) => {
+    // --- Invite lookup
     const invite = await tx.invite.findUnique({
       where: { tokenHash },
-      select: { id: true, coupleId: true, email: true, expiresAt: true, acceptedAt: true },
+      select: {
+        id: true,
+        coupleId: true,
+        email: true,
+        expiresAt: true,
+        acceptedAt: true,
+      },
     });
 
-    if (!invite) return { ok: false as const, status: 404, error: "Invalid invite" };
-    if (invite.expiresAt <= now) return { ok: false as const, status: 410, error: "Invite expired" };
+    if (!invite) {
+      return {
+        ok: false,
+        code: "INVALID_INVITE",
+        error: "Invalid invite",
+        status: 404,
+      };
+    }
 
-    // Email binding
+    if (invite.expiresAt && invite.expiresAt <= now) {
+      return {
+        ok: false,
+        code: "INVITE_EXPIRED",
+        error: "Invite expired",
+        status: 410,
+      };
+    }
+
+    // Email binding (always enforced against the effective email)
     if (invite.email && invite.email.toLowerCase() !== email.toLowerCase()) {
-      return { ok: false as const, status: 403, error: "Please sign in with the invited email" };
+      return {
+        ok: false,
+        code: "EMAIL_MISMATCH",
+        error: "Please sign in with the invited email",
+        status: 403,
+      };
+    }
+
+    // --- Guest mode: create/find user BEFORE membership checks
+    if (isGuestMode) {
+      const existing = await tx.user.findUnique({
+        where: { email },
+        select: { id: true, passwordHash: true },
+      });
+
+      if (!existing) {
+        const passwordHash = await bcrypt.hash(guestPassword, 10);
+
+        const created = await tx.user.create({
+          data: {
+            email,
+            name: guestName || undefined,
+            passwordHash,
+          },
+          select: { id: true },
+        });
+
+        userId = created.id;
+        createdUser = true;
+      } else {
+        userId = existing.id;
+
+        // If user exists but has no passwordHash, set it so Credentials works
+        if (!existing.passwordHash) {
+          const passwordHash = await bcrypt.hash(guestPassword, 10);
+          await tx.user.update({
+            where: { id: userId },
+            data: { passwordHash },
+          });
+        }
+      }
+    }
+
+    if (!userId) {
+      return {
+        ok: false,
+        code: "SERVER_ERROR",
+        error: "Missing user context",
+        status: 500,
+      };
     }
 
     // ✅ If user is already a member of THIS couple, treat as success (idempotent)
@@ -56,7 +215,14 @@ export async function POST(req: Request) {
         data: { onboardingStep: 1, onboardingCompleted: false },
       });
 
-      return { ok: true as const, coupleId: invite.coupleId };
+      return {
+        ok: true,
+        coupleId: invite.coupleId,
+        code: invite.acceptedAt ? "INVITE_ALREADY_ACCEPTED" : "ALREADY_IN_TARGET",
+        blocked: false,
+        createdUser,
+        shouldSignInWithCredentials: isGuestMode,
+      };
     }
 
     // ✅ Check if user is already connected somewhere else
@@ -76,9 +242,17 @@ export async function POST(req: Request) {
         await tx.couple.delete({
           where: { id: existingMembership.coupleId },
         });
+        // continue below
       } else {
         // Real couple: do NOT allow automatic re-binding
-        return { ok: false as const, status: 409, error: "You’re already connected to a couple" };
+        return {
+          ok: false,
+          code: "ALREADY_IN_OTHER_COUPLE",
+          error: "You’re already connected to a couple",
+          status: 200, // keep your existing UI-friendly behavior
+          blocked: true,
+          coupleId: existingMembership.coupleId,
+        };
       }
     }
 
@@ -96,15 +270,22 @@ export async function POST(req: Request) {
     // Force invited partner into onboarding
     await tx.user.update({
       where: { id: userId },
-      data: {
-        onboardingStep: 1,
-        onboardingCompleted: false,
-      },
+      data: { onboardingStep: 1, onboardingCompleted: false },
     });
 
-    return { ok: true as const, coupleId: invite.coupleId };
+    return {
+      ok: true,
+      coupleId: invite.coupleId,
+      code: existingMembership ? "PLACEHOLDER_REPLACED" : "JOINED",
+      blocked: false,
+      createdUser,
+      shouldSignInWithCredentials: isGuestMode,
+    };
   });
 
-  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
-  return NextResponse.json({ ok: true, coupleId: result.coupleId });
+  if (!result.ok) {
+    return NextResponse.json(result, { status: result.status });
+  }
+
+  return NextResponse.json(result, { status: 200 });
 }

@@ -1,8 +1,91 @@
 // app/page.tsx
 import Link from "next/link";
 import Image from "next/image";
+import { cookies } from "next/headers";
+import LandingCtas from "./_components/LandingCtas";
+import SiteFooter from "@/app/components/SiteFooter";
+
+
+type VariantKey = "A" | "B" | "C";
+
+function getVariantFromCookie(): VariantKey {
+  const v = cookies().get("bi_lp_v")?.value?.toUpperCase() || "A";
+  return v === "A" || v === "B" || v === "C" ? v : "A";
+}
 
 export default function HomePage() {
+  const variant = getVariantFromCookie();
+
+  const heroCopy: Record<VariantKey, { title: string; body: JSX.Element }> = {
+    A: {
+      title: "Celebrate what’s working — and catch the tiny drifts early.",
+      body: (
+        <>
+          BondIQ is built for couples who want to protect the love they’ve built — not just “fix problems.”
+          <br />
+          <br />
+          It helps you notice the small shifts that quietly shape a relationship: the days you feel closer,
+          the moments you feel distant, and the needs that go unspoken.
+          <br />
+          <br />
+          So you can reconnect early, appreciate each other more often, and keep small drifts from turning
+          into real distance.
+        </>
+      ),
+    },
+    B: {
+      title: "A warmer relationship doesn’t happen by accident.",
+      body: (
+        <>
+          BondIQ turns tiny weekly check-ins into clear, kind insights — the type that help couples stay close.
+          <br />
+          <br />
+          You’ll see what’s improving, what’s drifting, and one gentle action that helps you reset —
+          without blame, drama, or therapy-speak.
+          <br />
+          <br />
+          Think of it as a soft relationship “early warning system” that also celebrates the good stuff.
+        </>
+      ),
+    },
+    C: {
+      title: "Your love has signals. BondIQ helps you read them.",
+      body: (
+        <>
+          Some weeks feel smooth. Some feel “off,” but you can’t explain why.
+          BondIQ highlights the pattern — and gives you a calm, practical way to respond.
+          <br />
+          <br />
+          Celebrate wins. Spot tiny deviations. Repair quickly. Repeat.
+          <br />
+          <br />
+          It’s relationship intelligence, made human — designed for real couples with real lives.
+        </>
+      ),
+    },
+  };
+
+  const proTip: Record<VariantKey, JSX.Element> = {
+    A: (
+      <>
+        Couples who check in consistently (even briefly) get noticeably sharper reflections.
+        Start free — then upgrade when you want deeper pattern detection + richer guidance.
+      </>
+    ),
+    B: (
+      <>
+        The best results come from “small + steady.” Two minutes weekly beats long sessions once a month —
+        and Pro unlocks deeper patterns + more tailored suggestions.
+      </>
+    ),
+    C: (
+      <>
+        If you want BondIQ to feel “surprisingly accurate,” do 2–3 check-ins first.
+        Pro then adds deeper insight layers (patterns, mirrors, and recovery guidance).
+      </>
+    ),
+  };
+
   return (
     <main className="mx-auto max-w-6xl px-4 pb-16 pt-10">
       {/* HERO */}
@@ -14,28 +97,29 @@ export default function HomePage() {
               ✨ Weekly reflection • Gentle, practical • Built for real couples
             </div>
 
-            <div className="flex items-center gap-3">
-                <Image
-                    src="/logo.png"
-                    alt="BondIQ logo"
-                    width={48}
-                    height={48}
-                    priority
-                />
-
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
-                    BondIQ
-                    <span className="ml-2 align-middle text-base font-semibold text-slate-500 sm:text-lg">
-                    relationship intelligence, made human
-                    </span>
+            {/* Logo + Brand: one row. Tagline on its own line (mobile-friendly). */}
+            <div className="mt-4">
+              <div className="flex items-center gap-3">
+                <Image src="/logo.png" alt="BondIQ logo" width={44} height={44} priority />
+                <h1 className="text-4xl font-semibold tracking-tight text-slate-900 sm:text-5xl">
+                  BondIQ
                 </h1>
+              </div>
+
+              <div className="mt-1 text-sm font-semibold text-slate-600 sm:text-base">
+                Relationship intelligence, made human
+              </div>
             </div>
 
-
-            <p className="mt-4 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
-              BondIQ turns your weekly check-ins into a warm, clear reflection: what’s going well,
-              what’s drifting, and one gentle idea to reconnect — without blame, drama, or therapy-speak.
-            </p>
+            {/* NEW: conversion-focused intrigue below tagline */}
+            <div className="mt-5">
+              <div className="text-lg font-semibold text-slate-900 sm:text-xl">
+                {heroCopy[variant].title}
+              </div>
+              <p className="mt-3 max-w-2xl text-base leading-relaxed text-slate-700 sm:text-lg">
+                {heroCopy[variant].body}
+              </p>
+            </div>
 
             <div className="mt-5 flex flex-wrap gap-2">
               <span className="bond-chip">💌 Weekly story</span>
@@ -60,24 +144,12 @@ export default function HomePage() {
               </span>
             </div>
 
-            {/* CTAs */}
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link className="bond-btn bond-btn-primary w-full sm:w-auto" href="/signin">
-                Sign in <span aria-hidden>→</span>
-              </Link>
-
-              <Link className="bond-btn bond-btn-secondary w-full sm:w-auto" href="/app">
-                Open app
-              </Link>
-
-              <div className="text-xs text-slate-500 sm:ml-2">
-                Invite your partner when ready • No pressure
-              </div>
-            </div>
+            {/* CTAs + Pro tip + click tracking */}
+            <LandingCtas variant={variant} proTip={proTip[variant]} />
           </div>
 
           {/* Right: Image card */}
-          <div className="rounded-3xl border border-slate-200 bg-white/70 shadow-sm overflow-hidden">
+          <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white/70 shadow-sm">
             <div className="relative aspect-[4/5] w-full">
               <Image
                 src="/landing/couple-hero.png"
@@ -276,13 +348,9 @@ export default function HomePage() {
       {/* Footer */}
       <footer className="mx-auto mt-10 max-w-5xl px-1 text-xs text-slate-500">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <span>© {new Date().getFullYear()} BondIQ</span>
+          
           <span className="flex items-center gap-3">
-            <Link className="hover:underline" href="/privacy">
-              Privacy
-            </Link>
-            <span className="text-slate-300">•</span>
-            <span>Built for warmth + clarity</span>
+            <SiteFooter />
           </span>
         </div>
       </footer>

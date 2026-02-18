@@ -66,15 +66,16 @@ function esc(input: unknown) {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#039;");
 }
+
 function normalizeNarrative(s: string) {
-    return String(s || "")
-      // remove leading spaces on EACH line
-      .replace(/^[ \t]+/gm, "")
-      // collapse crazy indentation
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
+  return String(s || "")
+    // remove leading spaces on EACH line
+    .replace(/^[ \t]+/gm, "")
+    // collapse crazy indentation
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
-  
+
 /**
  * Removes markdown-ish artifacts that look ugly in email clients.
  * (We keep it conservative: only strip obvious markers)
@@ -139,35 +140,53 @@ function preheaderFor(input: WeeklyReflectionEmailInput) {
     return "A calm snapshot, one bright spot, and a gentle next step for the week ahead.";
   return "Your weekly snapshot + one small idea. Pro unlocks deeper patterns and partner mirror.";
 }
+
 function normalizeNarrativeRaw(s: string) {
-    return String(s || "")
-      // normalize NBSP + common unicode spaces to regular spaces
-      .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ")
-      // remove leading whitespace on each line (including tabs)
-      .replace(/^[ \t]+/gm, "")
-      // collapse "too many" blank lines
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
+  return String(s || "")
+    // normalize NBSP + common unicode spaces to regular spaces
+    .replace(/[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g, " ")
+    // remove leading whitespace on each line (including tabs)
+    .replace(/^[ \t]+/gm, "")
+    // collapse "too many" blank lines
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
-  
+
 function narrativeToHtml(s: string) {
-    const cleaned = normalizeNarrativeRaw(s);
-    if (!cleaned) return "";
-  
-    // Split into paragraphs on blank lines
-    const paras = cleaned.split(/\n\s*\n/);
-  
-    return paras
-      .map((p) => {
-        // inside a paragraph, turn single newlines into spaces (prevents weird wrapping)
-        const oneLine = p.replace(/\n+/g, " ").replace(/\s{2,}/g, " ").trim();
-        return `<p style="margin:0 0 12px 0; padding:0; font-size:13px; color:${BRAND.muted}; line-height:1.7;">${esc(
-          oneLine
-        )}</p>`;
-      })
-      .join("");
+  const cleaned = normalizeNarrativeRaw(s);
+  if (!cleaned) return "";
+
+  // Split into paragraphs on blank lines
+  const paras = cleaned.split(/\n\s*\n/);
+
+  return paras
+    .map((p) => {
+      // inside a paragraph, turn single newlines into spaces (prevents weird wrapping)
+      const oneLine = p.replace(/\n+/g, " ").replace(/\s{2,}/g, " ").trim();
+      return `<p style="margin:0 0 12px 0; padding:0; font-size:13px; color:${BRAND.muted}; line-height:1.7;">${esc(
+        oneLine
+      )}</p>`;
+    })
+    .join("");
 }
-  
+
+/**
+ * ✅ Dynamic, clickier title (keeps design intact)
+ */
+function dynamicTitle(input: WeeklyReflectionEmailInput) {
+  const score = Number(input.pulse?.score);
+
+  if (!Number.isFinite(score)) {
+    return "Your relationship, this week";
+  }
+
+  if (score >= 4.5) return "Your connection is shining ✨";
+  if (score >= 3.8) return "A strong week for your bond";
+  if (score >= 3.0) return "A meaningful week to reflect on";
+  if (score >= 2.0) return "A week to reconnect gently";
+  return "A week to reset and realign";
+}
+
 function pill(label: string) {
   return `
     <span style="
@@ -290,10 +309,7 @@ function loveNeedStory(tagRaw: string, isPro: boolean) {
       "Pro adds partner-mirror (what your partner needed most) + when this need peaks across the week.",
   };
 
-  const map: Record<
-    string,
-    { headline: string; body: string; tip: string; proHint?: string }
-  > = {
+  const map: Record<string, { headline: string; body: string; tip: string; proHint?: string }> = {
     TIME: {
       headline: "Love need: Time (presence).",
       body:
@@ -427,6 +443,7 @@ export function buildWeeklyReflectionEmail(input: WeeklyReflectionEmailInput): B
 
   const weekLabel = (input.weekLabel || "This week").trim();
   const narrative = stripMd((input.narrative || "").trim());
+  const title = dynamicTitle(input);
 
   const pulse = input.pulse || null;
   const metrics = Array.isArray(input.metrics) ? input.metrics : [];
@@ -460,7 +477,7 @@ export function buildWeeklyReflectionEmail(input: WeeklyReflectionEmailInput): B
       })()
     : "";
 
-  // ✅ NEW: split theme highlights from normal highlights
+  // ✅ split theme highlights from normal highlights
   const themeItems = highlights
     .map((h) => stripMd(String(h)))
     .filter((h) => /^Theme:\s*/i.test(h));
@@ -596,25 +613,24 @@ export function buildWeeklyReflectionEmail(input: WeeklyReflectionEmailInput): B
                 <!-- Card -->
                 <div class="card" style="margin-top:14px; background:${BRAND.card}; border:1px solid ${BRAND.border}; border-radius:22px; padding:22px; box-shadow:0 14px 34px rgba(15,23,42,0.06);">
                   <div class="h1" style="font-size:24px; font-weight:950; color:${BRAND.text}; line-height:1.25;">
-                    Your weekly reflection
+                    ${esc(title)}
                   </div>
                   <div style="margin-top:8px; font-size:13px; color:${BRAND.muted}; line-height:1.65;">
                     A calm snapshot of your connection — one bright spot, and one gentle next step.
                   </div>
 
-                  ${pulseHtml}
-                  ${metricsHtml}
-                  ${highlightsHtml}
-
+                  <!-- STORY MOVED TO TOP -->
                   <div style="margin-top:18px; padding:16px; border-radius:18px; border:1px solid ${BRAND.border}; background:#ffffff;">
                     <div style="font-size:13px; font-weight:950; color:${BRAND.text};">This week’s story</div>
 
                     <div style="margin-top:8px;">
-                        ${narrativeToHtml(narrative)}
+                      ${narrativeToHtml(narrative)}
                     </div>
                   </div>
 
-
+                  ${pulseHtml}
+                  ${metricsHtml}
+                  ${highlightsHtml}
                   ${ideaHtml}
                   ${proFooterHtml}
                   ${ctaHtml}

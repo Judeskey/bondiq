@@ -3,6 +3,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import PwaRegister from "@/components/PwaRegister";
 import { Toaster } from "react-hot-toast";
+import GoogleAnalytics from "@/app/components/GoogleAnalytics";
 
 export const metadata: Metadata = {
   title: "BondIQ — Relationship intelligence, made human",
@@ -10,12 +11,7 @@ export const metadata: Metadata = {
   applicationName: "BondIQ",
 
   icons: {
-    icon: [
-      { url: "/favicon.ico" },
-      // Optional PNG favicons if you add them later:
-      // { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      // { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-    ],
+    icon: [{ url: "/favicon.ico" }],
     shortcut: ["/favicon.ico"],
     apple: [{ url: "/apple-touch-icon.png" }],
   },
@@ -26,15 +22,13 @@ export const metadata: Metadata = {
     title: "BondIQ",
   },
 
-  formatDetection: {
-    telephone: false,
-  },
+  formatDetection: { telephone: false },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" suppressHydrationWarning>
+      <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
         <PwaRegister />
 
         <Toaster
@@ -48,6 +42,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             },
           }}
         />
+
+        <GoogleAnalytics />
 
         {children}
       </body>

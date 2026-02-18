@@ -70,8 +70,15 @@ function isCouplePremiumGate(msg: string | null) {
     t.includes("premium required") ||
     t.includes("couple premium required") ||
     t.includes("pro feature") ||
+    t.includes("couple_premium_required") ||
+    t.includes("premium_required") ||
     t.includes("403")
   );
+}
+
+// ✅ Strip trailing codes like: "Premium required ... [COUPLE_PREMIUM_REQUIRED]"
+function stripErrorCodeSuffix(msg: string) {
+  return (msg || "").replace(/\s*\[[A-Z0-9_:-]+\]\s*$/g, "").trim();
 }
 
 export default function GratitudePage() {
@@ -134,9 +141,9 @@ export default function GratitudePage() {
   async function jsonOrThrow(res: Response) {
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data?.ok) {
-      const msg = data?.error || `Request failed (${res.status})`;
-      const code = data?.code ? ` [${data.code}]` : "";
-      throw new Error(`${msg}${code}`);
+      // ✅ Keep UI clean: do NOT append "[CODE]" to the message
+      const msg = stripErrorCodeSuffix(data?.error || `Request failed (${res.status})`);
+      throw new Error(msg);
     }
     return data;
   }
@@ -167,7 +174,7 @@ export default function GratitudePage() {
 
       setEntries(Array.isArray(listJson.entries) ? listJson.entries : []);
     } catch (e: any) {
-      setError(e?.message || "Something went wrong");
+      setError(stripErrorCodeSuffix(e?.message || "Something went wrong"));
     } finally {
       setLoading(false);
     }
@@ -178,10 +185,10 @@ export default function GratitudePage() {
     try {
       const res = await fetch("/api/gratitude/resurface", { cache: "no-store" });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.ok) throw new Error(data?.error || `Resurface failed (${res.status})`);
+      if (!res.ok || !data?.ok) throw new Error(stripErrorCodeSuffix(data?.error || `Resurface failed (${res.status})`));
       setResurfaced(data?.entry ?? null);
     } catch (e: any) {
-      setError(e?.message || "Something went wrong");
+      setError(stripErrorCodeSuffix(e?.message || "Something went wrong"));
     }
   }
 
@@ -214,7 +221,7 @@ export default function GratitudePage() {
       setBody("");
       setVisibility("PRIVATE");
     } catch (e: any) {
-      setError(e?.message || "Failed to save");
+      setError(stripErrorCodeSuffix(e?.message || "Failed to save"));
     } finally {
       setSaving(false);
     }
@@ -260,7 +267,7 @@ export default function GratitudePage() {
       setEntries((prev) => prev.map((x) => (x.id === id ? updated : x)));
       cancelEdit();
     } catch (e: any) {
-      setError(e?.message || "Failed to update");
+      setError(stripErrorCodeSuffix(e?.message || "Failed to update"));
     } finally {
       setBusyId(null);
     }
@@ -288,7 +295,7 @@ export default function GratitudePage() {
         return next;
       });
     } catch (e: any) {
-      setError(e?.message || "Failed to pin/unpin");
+      setError(stripErrorCodeSuffix(e?.message || "Failed to pin/unpin"));
     } finally {
       setBusyId(null);
     }
@@ -302,13 +309,13 @@ export default function GratitudePage() {
     try {
       const res = await fetch(`/api/gratitude/${id}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data?.ok) throw new Error(data?.error || `Delete failed (${res.status})`);
+      if (!res.ok || !data?.ok) throw new Error(stripErrorCodeSuffix(data?.error || `Delete failed (${res.status})`));
 
       setEntries((prev) => prev.filter((x) => x.id !== id));
       if (resurfaced?.id === id) setResurfaced(null);
       if (memoryOfWeek?.id === id) setMemoryOfWeek(null);
     } catch (e: any) {
-      setError(e?.message || "Failed to delete");
+      setError(stripErrorCodeSuffix(e?.message || "Failed to delete"));
     } finally {
       setBusyId(null);
     }
@@ -325,9 +332,8 @@ export default function GratitudePage() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data?.ok) {
-        const msg = data?.error || `Polish failed (${res.status})`;
-        const code = data?.code ? ` [${data.code}]` : "";
-        throw new Error(`${msg}${code}`);
+        const msg = stripErrorCodeSuffix(data?.error || `Polish failed (${res.status})`);
+        throw new Error(msg);
       }
 
       const updated = data.entry as GratitudeEntry;
@@ -336,7 +342,7 @@ export default function GratitudePage() {
       setMowPolished(true);
       setEntries((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
     } catch (e: any) {
-      setError(e?.message || "Failed to polish");
+      setError(stripErrorCodeSuffix(e?.message || "Failed to polish"));
     } finally {
       setPolishingMow(false);
     }
@@ -346,7 +352,6 @@ export default function GratitudePage() {
     load();
   }, []);
 
-  // UI helpers (styling only)
   const inputBase =
     "w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none " +
     "focus-visible:ring-2 focus-visible:ring-pink-300 placeholder:text-slate-400";
@@ -355,7 +360,6 @@ export default function GratitudePage() {
   const subtleText = "text-sm text-slate-600";
   const metaText = "text-xs text-slate-500";
 
-  // Loading
   if (loading) {
     return (
       <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-10">
@@ -365,7 +369,6 @@ export default function GratitudePage() {
     );
   }
 
-  // Premium-locked state
   if (error && locked) {
     return (
       <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-10 space-y-6">
@@ -403,7 +406,10 @@ export default function GratitudePage() {
                 </button>
               </div>
 
-              <div className={cx("mt-3", metaText)}>Note: {error}</div>
+              {/* ✅ Clean note (no internal codes) */}
+              <div className={cx("mt-3", metaText)}>
+                Premium required (couple-level). Upgrade to unlock Gratitude Vault.
+              </div>
             </div>
 
             <div className="shrink-0 rounded-3xl border border-slate-200 bg-slate-50 px-4 py-3 text-center">
@@ -423,7 +429,6 @@ export default function GratitudePage() {
     );
   }
 
-  // Non-gating error
   if (error) {
     return (
       <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-10 space-y-4">
@@ -433,7 +438,7 @@ export default function GratitudePage() {
         </div>
 
         <div className="bond-card p-6">
-          <p className="text-sm text-slate-800">{error}</p>
+          <p className="text-sm text-slate-800">{stripErrorCodeSuffix(error)}</p>
           <div className="mt-4 flex flex-wrap gap-2">
             <button onClick={load} className="bond-btn bond-btn-primary">
               Retry
@@ -447,7 +452,6 @@ export default function GratitudePage() {
     );
   }
 
-  // Normal UI
   return (
     <div className="mx-auto w-full max-w-5xl px-4 pb-16 pt-10 space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -463,7 +467,6 @@ export default function GratitudePage() {
         </button>
       </div>
 
-      {/* Stats */}
       <section className="bond-card p-5">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-2xl border border-slate-200 bg-white/70 p-4">
@@ -490,7 +493,6 @@ export default function GratitudePage() {
         </p>
       </section>
 
-      {/* Memory of the Week */}
       <section className="bond-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
@@ -532,7 +534,6 @@ export default function GratitudePage() {
         )}
       </section>
 
-      {/* Create */}
       <section className="bond-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-semibold text-slate-900">Save a new memory</h2>
@@ -570,7 +571,6 @@ export default function GratitudePage() {
         </div>
       </section>
 
-      {/* Resurfaced */}
       <section className="bond-card p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-semibold text-slate-900">Resurfaced memory</h2>
@@ -605,7 +605,6 @@ export default function GratitudePage() {
         )}
       </section>
 
-      {/* Entries */}
       <section className="bond-card p-5">
         <h2 className="font-semibold text-slate-900">All entries</h2>
 

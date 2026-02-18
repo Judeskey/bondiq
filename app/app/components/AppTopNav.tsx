@@ -1,4 +1,3 @@
-// app/app/components/AppTopNav.tsx
 "use client";
 
 import Link from "next/link";
@@ -13,56 +12,66 @@ const NAV: NavItem[] = [
   { href: "/app/checkin", label: "Check-in" },
   { href: "/app/gratitude", label: "Gratitude" },
   { href: "/app/settings", label: "Settings" },
-  { href: "/settings/privacy", label: "Privacy" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 function isActive(pathname: string, href: string) {
-  if (href === "/app/reports") return pathname === "/app/reports";
-  if (href === "/app/settings") return pathname === "/app/settings";
-  return pathname === href || pathname.startsWith(href + "/");
+  return pathname.startsWith(href);
 }
 
 export default function AppTopNav() {
   const pathname = usePathname();
 
   return (
-    <header className="sticky top-0 z-40 border-b bg-white/80 backdrop-blur">
-      <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 px-4 py-3">
-        <Link href="/app/reports" className="flex items-center gap-2 font-semibold tracking-tight">
+    <header className="sticky top-0 z-50 border-b bg-white">
+      <div className="mx-auto flex max-w-6xl items-center px-4 py-3">
+
+        {/* LEFT — Brand */}
+        <Link href="/app/reports" className="flex items-center gap-2">
           <Image
-            src="/logo.png"
-            alt="BondIQ logo"
+            src="/logo-mark.png"
+            alt="BondIQ"
             width={28}
             height={28}
             priority
           />
-          <span>BondIQ</span>
+          <span className="font-semibold text-neutral-900 text-lg">
+            BondIQ
+          </span>
         </Link>
 
-        <nav className="flex flex-wrap items-center gap-2">
-          {NAV.map((item) => {
-            const active = isActive(pathname, item.href);
+        {/* RIGHT — Nav */}
+        <div className="ml-auto flex items-center gap-2">
 
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={"bond-btn " + (active ? "bond-btn-primary" : "bond-btn-secondary")}
-                aria-current={active ? "page" : undefined}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
+          <nav className="flex items-center gap-2">
+            {NAV.map((item) => {
+              const active = isActive(pathname, item.href);
+
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={[
+                    "rounded-full px-4 py-2 text-sm font-medium transition border",
+                    active
+                      ? "text-white border-transparent bg-gradient-to-r from-pink-500 to-purple-500 shadow-sm"
+                      : "text-neutral-800 border-neutral-200 hover:bg-neutral-50",
+                  ].join(" ")}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </nav>
 
           <button
-            type="button"
             onClick={() => signOut({ callbackUrl: "/" })}
-            className="bond-btn bond-btn-secondary"
+            className="rounded-full border border-neutral-200 px-4 py-2 text-sm font-medium text-neutral-900 hover:bg-neutral-50"
           >
             Sign out
           </button>
-        </nav>
+
+        </div>
       </div>
     </header>
   );

@@ -39,6 +39,10 @@ function formatWeekLabel(d: Date) {
   return `Week of ${fmt.format(d)}`;
 }
 
+function withNoTrailingSlash(url: string) {
+  return String(url || "").replace(/\/+$/, "");
+}
+
 export async function sendWeeklyReflectionEmail(opts: {
   userId: string;
   forcePlan?: "FREE" | "PREMIUM";
@@ -46,7 +50,7 @@ export async function sendWeeklyReflectionEmail(opts: {
   const resend = getResend();
   if (!resend) throw new Error("Missing RESEND_API_KEY (getResend() returned null)");
 
-  const appUrl = getAppUrl();
+  const appUrl = withNoTrailingSlash(getAppUrl());
   const from = getCareFromAddress();
 
   const user = await prisma.user.findUnique({
@@ -144,7 +148,13 @@ export async function sendWeeklyReflectionEmail(opts: {
   const weekLabel = report.weekStart ? formatWeekLabel(new Date(report.weekStart)) : "This week";
   const reportUrl = `${appUrl}/app/reports`;
   const settingsUrl = `${appUrl}/app/settings`;
-  const upgradeUrl = `${appUrl}/app/settings`; // until you have a billing page
+
+  // ✅ FIX: Upgrade CTA should go to pricing page (not settings)
+  // - interval=year is best default for conversion
+  // - src helps analytics attribution later
+  const upgradeUrl = `${appUrl}/pricing?utm_source=weekly_reflection&utm_medium=email&utm_campaign=weekly_reflection&utm_content=upgrade_cta`;
+
+
   const unsubscribeMailto = `mailto:care@bondiq.app?subject=Unsubscribe`;
 
   // Metrics: keep values as-is (you asked not to tamper)
@@ -177,7 +187,11 @@ export async function sendWeeklyReflectionEmail(opts: {
     gentleResetIdea,
     pulse:
       pulseValue != null
-        ? { score: pulseValue, label: pulseLabel || "Weekly snapshot", note: plan === "FREE" ? "More check-ins = sharper insights." : null }
+        ? {
+            score: pulseValue,
+            label: pulseLabel || "Weekly snapshot",
+            note: plan === "FREE" ? "More check-ins = sharper insights." : null,
+          }
         : null,
     metrics,
     highlights,

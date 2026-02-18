@@ -44,6 +44,29 @@ type CoupleMembersResponse = {
   couple: { id: string; status: string };
 };
 
+function StepPill({ n, active }: { n: number; active: boolean }) {
+  return (
+    <div
+      className={[
+        "flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-semibold",
+        active
+          ? "border-[#ec4899] bg-pink-50 text-[#ec4899]"
+          : "border-slate-200 bg-white text-slate-600",
+      ].join(" ")}
+    >
+      <span
+        className={[
+          "inline-flex h-5 w-5 items-center justify-center rounded-full text-[11px]",
+          active ? "bg-[#ec4899] text-white" : "bg-slate-100 text-slate-700",
+        ].join(" ")}
+      >
+        {n}
+      </span>
+      Step {n}
+    </div>
+  );
+}
+
 export default function OnboardingClient({
   email,
   name,
@@ -88,7 +111,6 @@ export default function OnboardingClient({
     return () => clearTimeout(t);
   }, [onboardingCompleted]);
 
-  // Load couple info (needed to skip Step 2 cleanly when couple already has 2 members)
   async function loadCoupleInfo() {
     try {
       const res = await fetch("/api/couple/members", { method: "GET", cache: "no-store" });
@@ -105,7 +127,7 @@ export default function OnboardingClient({
     }
   }
 
-  // ✅ Auto-skip Step 2 when couple already has 2 members (invited partner should never see Step 2)
+  // ✅ Auto-skip Step 2 when couple already has 2 members
   useEffect(() => {
     if (step !== 2) return;
     if (alreadySkippedStep2Ref.current) return;
@@ -114,7 +136,6 @@ export default function OnboardingClient({
       const info = await loadCoupleInfo();
       const memberCount = info?.members?.length ?? 0;
 
-      // If both partners are connected, Step 2 is pointless → go to Step 3
       if (memberCount >= 2) {
         alreadySkippedStep2Ref.current = true;
         try {
@@ -125,7 +146,6 @@ export default function OnboardingClient({
           router.replace("/app/onboarding");
           router.refresh();
         } catch (e: any) {
-          // fallback: still allow manual continue button if saveStep fails
           setMsg(e?.message || "Unable to advance. Please try again.");
         } finally {
           setSaving(false);
@@ -170,8 +190,13 @@ export default function OnboardingClient({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ step: nextStep }),
     });
+
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data?.error || "Failed to save step");
+    if (!res.ok) {
+      // ✅ Show the real server error (super helpful for “not progressing”)
+      throw new Error(data?.error || `Failed to save step (HTTP ${res.status})`);
+    }
+
     return data as { onboardingStep: number; onboardingCompleted: boolean };
   }
 
@@ -201,7 +226,7 @@ export default function OnboardingClient({
       });
       const d1 = await r1.json().catch(() => ({}));
       if (!r1.ok) {
-        setMsg(d1?.error || "Unable to save name.");
+        setMsg(d1?.error || `Unable to save name (HTTP ${r1.status}).`);
         return;
       }
 
@@ -216,13 +241,16 @@ export default function OnboardingClient({
       });
       const d2 = await r2.json().catch(() => ({}));
       if (!r2.ok) {
-        setMsg(d2?.error || "Unable to save love profile.");
+        setMsg(d2?.error || `Unable to save love profile (HTTP ${r2.status}).`);
         return;
       }
 
-      // 3) Move forward (server page will recompute best step on reload)
-      await saveStep(2);
-      router.replace("/app/onboarding");
+      // ✅ 3) Move forward
+      // IMPORTANT FIX: setStep immediately so the UI progresses even if route refresh is flaky.
+      const stepData = await saveStep(2);
+      setStep(stepData.onboardingStep);
+
+      // Refresh server state so page.tsx recomputes based on the newly-created loveProfile
       router.refresh();
     } catch (e: any) {
       setMsg(e?.message || "Network error saving profile");
@@ -231,102 +259,190 @@ export default function OnboardingClient({
     }
   }
 
+  const input =
+    "w-full rounded-xl border px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#ec4899]/30 focus:border-[#ec4899]";
+  const pinkBtn =
+    "rounded-xl bg-[#ec4899] px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-60 disabled:cursor-not-allowed transition";
+  const pinkBtnFull = "w-full " + pinkBtn;
+  const pinkOutline =
+    "rounded-xl border border-[#ec4899] px-4 py-2 text-sm font-semibold text-[#ec4899] hover:bg-pink-50 disabled:opacity-60 disabled:cursor-not-allowed transition";
+
+  function isCheckedDisabled(list: LoveLanguage[], t: LoveLanguage) {
+    return !list.includes(t) && list.length >= 3;
+  }
+
+  async function copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setMsg("✅ Copied invite link!");
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setMsg("✅ Copied invite link!");
+    }
+  }
+
   return (
-    <main className="mx-auto max-w-2xl p-8">
-      <h1 className="text-3xl font-semibold">Welcome to BondIQ</h1>
-      <p className="mt-2 text-slate-700">
-        Signed in as <b>{email}</b>
-      </p>
+    <main className="mx-auto max-w-3xl px-6 py-10">
+      <div className="rounded-2xl border bg-gradient-to-b from-pink-50 to-white p-6">
+        <div className="text-sm font-semibold text-[#ec4899]">BondIQ Onboarding</div>
+        <h1 className="mt-1 text-3xl font-semibold text-slate-900">Welcome 👋</h1>
+        <p className="mt-2 text-slate-700">
+          Signed in as <span className="font-semibold">{email}</span>
+        </p>
 
-      <div className="mt-6 rounded-lg border p-5">
-        <div className="text-sm text-slate-600">Current step: {step}</div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <StepPill n={1} active={step === 1} />
+          <StepPill n={2} active={step === 2} />
+          <StepPill n={3} active={step === 3} />
+        </div>
 
+        <p className="mt-4 text-sm text-slate-600">
+          These choices power your weekly reflections, insights, and gentle repair suggestions.
+        </p>
+      </div>
+
+      {msg ? (
+        <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          {msg}
+        </div>
+      ) : null}
+
+      <div className="mt-6 rounded-2xl border bg-white p-6 shadow-sm">
         {/* STEP 1 */}
         {step === 1 && (
-          <div className="mt-4 space-y-4">
-            <h2 className="text-xl font-semibold">Step 1 — Your love profile</h2>
-            <p className="text-slate-700">
-              Choose up to 3 primary and up to 3 secondary love languages. This powers your reports and insights.
-            </p>
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">Step 1 — Your love profile</h2>
+              <p className="mt-1 text-slate-700">
+                Pick up to <span className="font-semibold">3 primary</span> and up to{" "}
+                <span className="font-semibold">3 secondary</span> love languages. BondIQ uses this to personalize your
+                insights.
+              </p>
+            </div>
 
             <div className="space-y-2">
-              <div className="text-sm font-medium">Your name</div>
+              <div className="text-sm font-semibold text-slate-900">Your name</div>
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="e.g., Jayne"
-                className="w-full rounded-md border px-3 py-2"
+                className={input}
               />
               <div className="text-xs text-slate-500">This is what your partner will see.</div>
             </div>
 
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Primary (max 3)</div>
-              <div className="grid gap-2">
+            <div className="rounded-2xl border p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-slate-900">Primary (max 3)</div>
+                <div className="text-xs text-slate-600">
+                  Selected: <span className="font-semibold">{primary.length}</span>/3
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-2">
                 {LOVE.map((t) => (
-                  <label key={t} className="flex items-center gap-2">
+                  <label
+                    key={t}
+                    className={[
+                      "flex items-center gap-3 rounded-xl border px-3 py-2",
+                      primary.includes(t) ? "border-[#ec4899] bg-pink-50" : "border-slate-200 bg-white",
+                      isCheckedDisabled(primary, t) ? "opacity-60" : "",
+                    ].join(" ")}
+                  >
                     <input
                       type="checkbox"
                       checked={primary.includes(t)}
+                      disabled={isCheckedDisabled(primary, t)}
                       onChange={() => setPrimary((prev) => toggleMax3(prev, t))}
+                      className="h-4 w-4 accent-[#ec4899]"
                     />
-                    <span>{label(t)}</span>
+                    <span className="text-sm text-slate-900">{label(t)}</span>
                   </label>
                 ))}
               </div>
-              <div className="text-xs text-slate-500">Selected: {primary.length}/3</div>
+
+              {primary.length >= 3 ? (
+                <div className="mt-3 text-xs text-slate-600">
+                  You’ve selected the maximum of 3 primary languages.
+                </div>
+              ) : null}
             </div>
 
-            <div className="space-y-2">
-              <div className="text-sm font-medium">Secondary (optional, max 3)</div>
-              <div className="grid gap-2">
+            <div className="rounded-2xl border p-4">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-slate-900">Secondary (optional, max 3)</div>
+                <div className="text-xs text-slate-600">
+                  Selected: <span className="font-semibold">{secondary.length}</span>/3
+                </div>
+              </div>
+
+              <div className="mt-3 grid gap-2">
                 {LOVE.map((t) => (
-                  <label key={t} className="flex items-center gap-2">
+                  <label
+                    key={t}
+                    className={[
+                      "flex items-center gap-3 rounded-xl border px-3 py-2",
+                      secondary.includes(t) ? "border-[#ec4899] bg-pink-50" : "border-slate-200 bg-white",
+                      isCheckedDisabled(secondary, t) ? "opacity-60" : "",
+                    ].join(" ")}
+                  >
                     <input
                       type="checkbox"
                       checked={secondary.includes(t)}
+                      disabled={isCheckedDisabled(secondary, t)}
                       onChange={() => setSecondary((prev) => toggleMax3(prev, t))}
+                      className="h-4 w-4 accent-[#ec4899]"
                     />
-                    <span>{label(t)}</span>
+                    <span className="text-sm text-slate-900">{label(t)}</span>
                   </label>
                 ))}
               </div>
-              <div className="text-xs text-slate-500">Selected: {secondary.length}/3</div>
-              <div className="text-xs text-slate-500">
-                If a selection overlaps Primary, it will be ignored automatically.
+
+              <div className="mt-3 text-xs text-slate-600">
+                If a selection overlaps with Primary, it will be ignored automatically.
               </div>
             </div>
 
-            <button
-              disabled={saving || primary.length < 1}
-              className="rounded-md bg-black px-4 py-2 text-white disabled:opacity-60"
-              onClick={submitProfile}
-            >
+            <button disabled={saving || primary.length < 1} className={pinkBtnFull} onClick={submitProfile}>
               {saving ? "Saving…" : "Save & Continue"}
             </button>
+
+            <div className="text-xs text-slate-500">
+              Tip: Don’t overthink it — you can refine this later in Settings.
+            </div>
           </div>
         )}
 
-        {/* STEP 2 (ONLY useful when couple has 1 member; otherwise auto-skips to Step 3) */}
+        {/* STEP 2 */}
         {step === 2 && (
-          <div className="mt-4 space-y-3">
-            <h2 className="text-xl font-semibold">Step 2 — Connect your partner</h2>
-            <p className="text-slate-700">
-              Invite your partner by email, or share a link / QR code instantly.
-            </p>
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">Step 2 — Connect your partner</h2>
+              <p className="mt-1 text-slate-700">
+                Invite your partner by email, or share a link / QR code.
+              </p>
+            </div>
 
-            <input
-              type="email"
-              value={partnerEmail}
-              onChange={(e) => setPartnerEmail(e.target.value)}
-              placeholder="Partner email (optional)"
-              className="w-full rounded-md border px-3 py-2"
-            />
+            <div className="space-y-2">
+              <div className="text-sm font-semibold text-slate-900">Partner email (optional)</div>
+              <input
+                type="email"
+                value={partnerEmail}
+                onChange={(e) => setPartnerEmail(e.target.value)}
+                placeholder="partner@example.com"
+                className={input}
+              />
+            </div>
 
             <div className="flex flex-wrap gap-2">
               <button
                 disabled={saving}
-                className="rounded-md bg-black px-4 py-2 text-white disabled:opacity-60"
+                className={pinkBtn}
                 onClick={async () => {
                   setSaving(true);
                   setMsg(null);
@@ -355,81 +471,64 @@ export default function OnboardingClient({
                   }
                 }}
               >
-                {saving ? "Working…" : "Send invite / Create link"}
+                {saving ? "Working…" : partnerEmailClean ? "Send invite" : "Create invite link"}
               </button>
 
               <button
                 type="button"
                 disabled={!inviteUrl}
-                className="rounded-md border px-4 py-2 disabled:opacity-50"
+                className={pinkOutline}
                 onClick={async () => {
                   if (!inviteUrl) return;
-                  await navigator.clipboard.writeText(inviteUrl);
-                  setMsg("✅ Copied invite link!");
+                  await copyToClipboard(inviteUrl);
                 }}
               >
                 Copy link
               </button>
 
-              {/* ✅ Always allow moving forward; if partner later joins, app still works */}
               <button
                 disabled={saving}
-                className="rounded-md border px-4 py-2 disabled:opacity-50"
+                className={pinkOutline}
                 onClick={async () => {
                   try {
                     setSaving(true);
                     setMsg(null);
                     const data = await saveStep(3);
                     setStep(data.onboardingStep);
-                    router.replace("/app/onboarding");
                     router.refresh();
                   } catch (e: any) {
-                    setMsg(e?.message || "Invalid step");
+                    setMsg(e?.message || "Unable to continue. Please try again.");
                   } finally {
                     setSaving(false);
                   }
                 }}
               >
-                Continue to Step 3
-              </button>
-
-              <button
-                disabled={saving}
-                className="rounded-md border px-4 py-2 disabled:opacity-50"
-                onClick={async () => {
-                  try {
-                    const data = await saveStep(3);
-                    setStep(data.onboardingStep);
-                    if (data.onboardingCompleted) window.location.href = "/app";
-                  } catch (e: any) {
-                    setMsg(e?.message || "Invalid step");
-                  }
-                }}
-              >
-                Skip for now
+                Continue
               </button>
             </div>
 
-            {inviteUrl && (
-              <div className="rounded-md border bg-slate-50 p-3 text-sm break-all">{inviteUrl}</div>
-            )}
-
             {inviteUrl ? (
-              <div className="mt-4">
-                <div className="text-sm font-semibold">QR code</div>
-                <div className="text-xs text-slate-600">
-                  Your partner can scan this to open the invite instantly.
+              <div className="rounded-2xl border bg-slate-50 p-4">
+                <div className="text-xs font-semibold text-slate-600">Invite link</div>
+                <div className="mt-2 break-all rounded-xl border bg-white p-3 text-sm text-slate-900">
+                  {inviteUrl}
                 </div>
 
-                {qrErr ? (
-                  <div className="mt-2 rounded-md border bg-rose-50 p-3 text-sm">{qrErr}</div>
-                ) : qr ? (
-                  <div className="mt-2 inline-block rounded-md border bg-white p-3">
-                    <img src={qr} alt="Invite QR code" className="h-[220px] w-[220px]" />
-                  </div>
-                ) : (
-                  <div className="mt-2 text-sm text-slate-600">Generating QR…</div>
-                )}
+                <div className="mt-4">
+                  <div className="text-sm font-semibold text-slate-900">QR code</div>
+
+                  {qrErr ? (
+                    <div className="mt-2 rounded-xl border bg-rose-50 p-3 text-sm text-rose-900">
+                      {qrErr}
+                    </div>
+                  ) : qr ? (
+                    <div className="mt-2 inline-block rounded-xl border bg-white p-3">
+                      <img src={qr} alt="Invite QR code" className="h-[220px] w-[220px]" />
+                    </div>
+                  ) : (
+                    <div className="mt-2 text-sm text-slate-600">Generating QR…</div>
+                  )}
+                </div>
               </div>
             ) : null}
           </div>
@@ -437,18 +536,22 @@ export default function OnboardingClient({
 
         {/* STEP 3 */}
         {step === 3 && (
-          <div className="mt-4 space-y-3">
-            <h2 className="text-xl font-semibold">Step 3 — First check-in</h2>
-            <p className="text-slate-700">Your weekly check-ins power reports, trends, and insights.</p>
+          <div className="space-y-5">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-900">Step 3 — Your first check-in</h2>
+              <p className="mt-1 text-slate-700">
+                Weekly check-ins power your report, trends, and gentle repair suggestions.
+              </p>
+            </div>
 
-            <div className="flex gap-2">
-              <a className="rounded-md border px-4 py-2" href="/app/checkin">
+            <div className="flex flex-wrap gap-2">
+              <a className={pinkOutline} href="/app/checkin">
                 Start check-in
               </a>
 
               <button
                 disabled={saving}
-                className="rounded-md bg-black px-4 py-2 text-white disabled:opacity-60"
+                className={pinkBtn}
                 onClick={async () => {
                   setSaving(true);
                   setMsg(null);
@@ -457,7 +560,7 @@ export default function OnboardingClient({
                     if (data.onboardingCompleted) window.location.href = "/app";
                     else setMsg("If you already checked in, try refreshing the page once.");
                   } catch (e: any) {
-                    setMsg(e?.message || "Invalid step");
+                    setMsg(e?.message || "Unable to confirm. Please try again.");
                   } finally {
                     setSaving(false);
                   }
@@ -468,8 +571,6 @@ export default function OnboardingClient({
             </div>
           </div>
         )}
-
-        {msg && <div className="mt-4 rounded-md border bg-white p-3 text-sm">{msg}</div>}
       </div>
     </main>
   );

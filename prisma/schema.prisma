@@ -147,6 +147,7 @@ model Couple {
   planUpdatedAt      DateTime  @default(now())
   billingOwnerUserId String?
   reportTimeMinutes  Int       @default(540) // 09:00 local time (9*60)
+  stripeCustomerId String? @unique
 
   members                CoupleMember[]
   invites                Invite[]
@@ -452,19 +453,31 @@ model CoupleInsightsCache {
 }
 
 model DisconnectRequest {
-  id              String    @id @default(cuid())
+  id              String   @id @default(cuid())
   coupleId        String
   requesterUserId String
-  confirmHash     String // sha256(token) stored
-  createdAt       DateTime  @default(now())
-  confirmedAt     DateTime?
 
-  couple    Couple @relation(fields: [coupleId], references: [id], onDelete: Cascade)
-  requester User   @relation(fields: [requesterUserId], references: [id], onDelete: Cascade)
+  // sha256(token) stored (never store raw token)
+  confirmHash     String   @unique
+
+  // Strong guardrail: user must type this exact phrase
+  phrase          String
+
+  // Guardrail: confirmation should expire (e.g. 15 minutes)
+  expiresAt       DateTime
+
+  createdAt       DateTime @default(now())
+  confirmedAt     DateTime?
+  cancelledAt     DateTime?
+
+  couple          Couple   @relation(fields: [coupleId], references: [id], onDelete: Cascade)
+  requester       User     @relation(fields: [requesterUserId], references: [id], onDelete: Cascade)
 
   @@index([coupleId])
   @@index([requesterUserId])
+  @@index([expiresAt])
 }
+
 
 model DailyEngagement {
   id                String   @id @default(cuid())
@@ -492,3 +505,12 @@ model EmailSendLog {
   @@unique([userId, type, dayKey])
   @@index([type, dayKey])
 }
+model LandingExperimentStat {
+  variant      String   @id // "A" | "B" | "C"
+  impressions  Int      @default(0)
+  clicks       Int      @default(0)
+  signInClicks Int      @default(0)
+  openAppClicks Int     @default(0)
+  updatedAt    DateTime @updatedAt
+}
+

@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import ReportScheduleCard from "./components/ReportScheduleCard";
+import DisconnectPartnerCard from "./DisconnectPartnerCard";
+import PlanStatusBadge from "@/app/components/PlanStatusBadge";
+
+
 
 const LOVE = ["WORDS", "TIME", "GIFTS", "SERVICE", "TOUCH"] as const;
 type LoveTag = (typeof LOVE)[number];
@@ -439,11 +443,15 @@ export default function SettingsPage() {
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-      <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
+        <PlanStatusBadge className="mt-3" showManageButton={false} />
 
+      <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
+      
       <div className="mt-4 space-y-4">
         <ReportScheduleCard />
       </div>
+      
+
 
       {/* Profile */}
       <section className="bond-card mt-6 p-5 sm:p-6">
@@ -748,6 +756,24 @@ export default function SettingsPage() {
           ) : null}
         </form>
       </section>
+      <div className="mt-8">
+       <DisconnectPartnerCard />
+      </div>
+        <div className="mt-10 rounded-2xl border bg-white p-6">
+        <h3 className="text-lg font-semibold">Legal & Support</h3>
+        <p className="mt-1 text-sm text-slate-600">
+            Quick access to policies and help resources.
+        </p>
+
+        <div className="mt-4 grid gap-2 text-sm">
+            <a className="underline text-slate-700 hover:text-slate-900" href="/privacy">Privacy Policy</a>
+            <a className="underline text-slate-700 hover:text-slate-900" href="/terms">Terms of Service</a>
+            <a className="underline text-slate-700 hover:text-slate-900" href="/faq">FAQ</a>
+            <a className="underline text-slate-700 hover:text-slate-900" href="/compliance">Compliance & Safety</a>
+            <a className="underline text-slate-700 hover:text-slate-900" href="/support">Contact Support</a>
+        </div>
+        </div>
+
     </main>
   );
 }

@@ -135,7 +135,11 @@ function Card({
 
 function formatTriggers(triggers?: Trigger[] | null, limit = 3) {
   const arr = Array.isArray(triggers) ? triggers : [];
-  if (!arr.length) return { value: "Not enough signal", sub: "Add a few more check-ins to learn recovery triggers" };
+  if (!arr.length)
+    return {
+      value: "Not enough signal",
+      sub: "Add a few more check-ins to learn recovery triggers",
+    };
 
   const top = arr
     .slice()
@@ -172,7 +176,7 @@ function fmtAvg(n?: number) {
 
 function fmtVol(n?: number) {
   if (!Number.isFinite(n as any)) return "—";
-  const v = (n as number);
+  const v = n as number;
   return v.toFixed(2);
 }
 
@@ -200,6 +204,13 @@ export default function InsightsPanel({
     return map;
   }, [members]);
 
+  function gaEvent(name: string, params?: Record<string, any>) {
+    if (typeof window === "undefined") return;
+    const gtag = (window as any).gtag;
+    if (typeof gtag !== "function") return;
+    gtag("event", name, params || {});
+  }
+
   useEffect(() => {
     let cancelled = false;
 
@@ -221,6 +232,15 @@ export default function InsightsPanel({
           if (res.status === 402 || res.status === 403) {
             setProBlocked(true);
             setData(null);
+
+            // ✅ Track Pro lock trigger (insights API blocked)
+            gaEvent("pro_feature_blocked", {
+              feature: "deep_insights",
+              location: "reports_insights_panel",
+              window_days: windowDays,
+              status: res.status,
+            });
+
             return;
           }
           setErr(json?.error || "Failed to load insights");
@@ -243,11 +263,25 @@ export default function InsightsPanel({
     };
   }, [windowDays]);
 
+  // ✅ Track when the locked panel is shown (once per mount / change)
+  useEffect(() => {
+    if (!loading && proBlocked) {
+      gaEvent("pro_lock_shown", {
+        feature: "deep_insights",
+        location: "reports_insights_panel",
+        window_days: windowDays,
+      });
+    }
+  }, [loading, proBlocked, windowDays]);
+
   const couple = data?.insights?.couple;
   const perPartner = data?.insights?.perPartner ?? [];
 
   const dipsFmt = useMemo(() => formatDips(couple?.midWeekDips), [couple?.midWeekDips]);
-  const triggersFmt = useMemo(() => formatTriggers(couple?.recoveryTriggers), [couple?.recoveryTriggers]);
+  const triggersFmt = useMemo(
+    () => formatTriggers(couple?.recoveryTriggers),
+    [couple?.recoveryTriggers]
+  );
 
   const coupleStats = couple?.stats;
 
@@ -313,7 +347,19 @@ export default function InsightsPanel({
               </div>
 
               {onUpgrade ? (
-                <button onClick={onUpgrade} className="bond-btn bond-btn-primary mt-4">
+                <button
+                  onClick={() => {
+                    // ✅ Track upgrade click (does NOT change behavior)
+                    gaEvent("upgrade_click", {
+                      location: "reports_insights_panel_lock",
+                      feature: "deep_insights",
+                      window_days: windowDays,
+                    });
+
+                    onUpgrade();
+                  }}
+                  className="bond-btn bond-btn-primary mt-4"
+                >
                   Upgrade
                 </button>
               ) : null}
@@ -376,7 +422,9 @@ export default function InsightsPanel({
           <div className="rounded-3xl border border-slate-200 bg-slate-50/60 p-4">
             <div className="flex items-center justify-between gap-3">
               <div className="text-xs font-semibold text-slate-700">Per-partner highlights</div>
-              <div className="text-[11px] text-slate-500">Personal patterns may differ — this helps you compare gently.</div>
+              <div className="text-[11px] text-slate-500">
+                Personal patterns may differ — this helps you compare gently.
+              </div>
             </div>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
