@@ -3,8 +3,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Resonance",
-    short_name: "Resonance",
+    name: "BondIQ",
+    short_name: "BondIQ",
     description: "Weekly relationship insights that help love land.",
     start_url: "/",
     display: "standalone",
