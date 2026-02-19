@@ -87,6 +87,8 @@ export default function PricingClient({ checkout, sessionId }: Props) {
     }
   }
 
+  const premiumPrice = interval === "year" ? "79.99" : "9.99";
+
   return (
     <div className="mx-auto w-full max-w-4xl px-4 py-10">
       <div className="text-center">
@@ -152,7 +154,7 @@ export default function PricingClient({ checkout, sessionId }: Props) {
           <div className="text-sm font-semibold">Premium</div>
 
           <div className="mt-4 flex items-baseline gap-2">
-            <div className="text-4xl font-semibold">$9.99</div>
+            <div className="text-4xl font-semibold">${premiumPrice}</div>
             <div className="text-sm text-slate-600">
               per {interval === "year" ? "year" : "month"}
             </div>
