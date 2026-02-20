@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import ReportScheduleCard from "./components/ReportScheduleCard";
 import DisconnectPartnerCard from "./DisconnectPartnerCard";
 import PlanStatusBadge from "@/app/components/PlanStatusBadge";
-
-
+import QRCode from "qrcode";
 
 const LOVE = ["WORDS", "TIME", "GIFTS", "SERVICE", "TOUCH"] as const;
 type LoveTag = (typeof LOVE)[number];
@@ -185,6 +184,21 @@ export default function SettingsPage() {
   const [partnerNickname, setPartnerNickname] = useState("");
   const [savingNick, setSavingNick] = useState(false);
   const [nickMsg, setNickMsg] = useState<string | null>(null);
+
+  // ✅ INVITE state (NEW)
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteUrl, setInviteUrl] = useState("");
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteMsg, setInviteMsg] = useState<string | null>(null);
+
+  const [qr, setQr] = useState<string>("");
+  const [qrErr, setQrErr] = useState<string | null>(null);
+
+  const memberCount = coupleInfo?.members?.length ?? 0;
+  const partnerConnected = memberCount >= 2;
+  const inviteDisabled = partnerConnected;
+
+  const inviteEmailClean = useMemo(() => inviteEmail.trim().toLowerCase(), [inviteEmail]);
 
   // ✅ LOVE PROFILE state
   const [primary, setPrimary] = useState<LoveTag[]>([]);
@@ -429,6 +443,85 @@ export default function SettingsPage() {
     }
   }
 
+  async function copyToClipboard(text: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setInviteMsg("✅ Copied invite link!");
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      setInviteMsg("✅ Copied invite link!");
+    }
+  }
+
+  async function createInvite() {
+    setInviteMsg(null);
+    setQrErr(null);
+
+    if (inviteDisabled) {
+      setInviteMsg("⚠ Your partner is already connected. Invites are disabled.");
+      return;
+    }
+
+    setInviteBusy(true);
+    try {
+      const res = await fetch("/api/invite/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: inviteEmailClean ? inviteEmailClean : undefined,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setInviteMsg(data?.error || "Failed to create invite.");
+        return;
+      }
+
+      const url = typeof data?.inviteUrl === "string" ? data.inviteUrl : "";
+      setInviteUrl(url);
+      setInviteMsg(data?.emailed ? "✅ Invite sent by email!" : "✅ Invite link created.");
+    } catch (err: any) {
+      setInviteMsg(err?.message || "Network error creating invite.");
+    } finally {
+      setInviteBusy(false);
+    }
+  }
+
+  // Generate QR when inviteUrl changes
+  useEffect(() => {
+    let cancelled = false;
+
+    async function genQr() {
+      setQrErr(null);
+
+      if (!inviteUrl) {
+        setQr("");
+        return;
+      }
+
+      try {
+        const dataUrl = await QRCode.toDataURL(inviteUrl, { margin: 1, width: 220 });
+        if (!cancelled) setQr(dataUrl);
+      } catch {
+        if (!cancelled) {
+          setQr("");
+          setQrErr("Unable to generate QR code.");
+        }
+      }
+    }
+
+    genQr();
+    return () => {
+      cancelled = true;
+    };
+  }, [inviteUrl]);
+
   useEffect(() => {
     loadProfile();
     loadCouple();
@@ -443,15 +536,13 @@ export default function SettingsPage() {
 
   return (
     <main className="mx-auto max-w-2xl p-6">
-        <PlanStatusBadge className="mt-3" showManageButton={false} />
+      <PlanStatusBadge className="mt-3" showManageButton={false} />
 
       <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
-      
+
       <div className="mt-4 space-y-4">
         <ReportScheduleCard />
       </div>
-      
-
 
       {/* Profile */}
       <section className="bond-card mt-6 p-5 sm:p-6">
@@ -571,6 +662,102 @@ export default function SettingsPage() {
             </div>
           ) : null}
         </form>
+      </section>
+
+      {/* Partner invite (NEW) */}
+      <section className="bond-card mt-6 p-5 sm:p-6">
+        <h2 className="text-lg font-semibold text-slate-900">Partner invite</h2>
+        <p className="mt-1 text-sm text-slate-600">
+          Mistyped your partner’s email during onboarding? Send a fresh invite link here.
+        </p>
+
+        {inviteDisabled ? (
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            ⚠ Your partner is already connected. Invites are disabled.
+          </div>
+        ) : null}
+
+        <div className={["mt-4 space-y-3", inviteDisabled ? "opacity-60" : ""].join(" ")}>
+          <div>
+            <label className="block text-sm font-medium text-slate-800">Partner email (optional)</label>
+            <input
+              className={inputBase}
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              placeholder="partner@example.com"
+              disabled={inviteDisabled || inviteBusy}
+            />
+            <div className="mt-1 text-xs text-slate-500">
+              Leave blank to generate an invite link you can copy/share anywhere.
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={inviteDisabled || inviteBusy}
+              className="bond-btn bond-btn-primary"
+              onClick={createInvite}
+            >
+              {inviteBusy ? "Working…" : inviteEmailClean ? "Send invite" : "Create invite link"}
+            </button>
+
+            <button
+              type="button"
+              disabled={inviteDisabled || !inviteUrl}
+              className="bond-btn bond-btn-secondary"
+              onClick={async () => {
+                if (!inviteUrl) return;
+                await copyToClipboard(inviteUrl);
+              }}
+            >
+              Copy link
+            </button>
+
+            <button
+              type="button"
+              disabled={inviteDisabled || !inviteUrl}
+              className="bond-btn bond-btn-secondary"
+              onClick={() => {
+                setInviteUrl("");
+                setQr("");
+                setQrErr(null);
+                setInviteMsg(null);
+              }}
+            >
+              Clear
+            </button>
+          </div>
+
+          {inviteUrl ? (
+            <div className="rounded-2xl border bg-slate-50 p-4">
+              <div className="text-xs font-semibold text-slate-600">Invite link</div>
+              <div className="mt-2 break-all rounded-xl border bg-white p-3 text-sm text-slate-900">{inviteUrl}</div>
+
+              <div className="mt-4">
+                <div className="text-sm font-semibold text-slate-900">QR code</div>
+
+                {qrErr ? (
+                  <div className="mt-2 rounded-xl border bg-rose-50 p-3 text-sm text-rose-900">{qrErr}</div>
+                ) : qr ? (
+                  <div className="mt-2 inline-block rounded-xl border bg-white p-3">
+                    <img src={qr} alt="Invite QR code" className="h-[220px] w-[220px]" />
+                  </div>
+                ) : (
+                  <div className="mt-2 text-sm text-slate-600">Generating QR…</div>
+                )}
+              </div>
+            </div>
+          ) : null}
+
+          {inviteMsg ? (
+            <div className="bond-chip w-fit">
+              <span aria-hidden>ℹ️</span>
+              <span>{inviteMsg}</span>
+            </div>
+          ) : null}
+        </div>
       </section>
 
       {/* Partner nickname */}
@@ -756,24 +943,33 @@ export default function SettingsPage() {
           ) : null}
         </form>
       </section>
+
       <div className="mt-8">
-       <DisconnectPartnerCard />
+        <DisconnectPartnerCard />
       </div>
-        <div className="mt-10 rounded-2xl border bg-white p-6">
+
+      <div className="mt-10 rounded-2xl border bg-white p-6">
         <h3 className="text-lg font-semibold">Legal & Support</h3>
-        <p className="mt-1 text-sm text-slate-600">
-            Quick access to policies and help resources.
-        </p>
+        <p className="mt-1 text-sm text-slate-600">Quick access to policies and help resources.</p>
 
         <div className="mt-4 grid gap-2 text-sm">
-            <a className="underline text-slate-700 hover:text-slate-900" href="/privacy">Privacy Policy</a>
-            <a className="underline text-slate-700 hover:text-slate-900" href="/terms">Terms of Service</a>
-            <a className="underline text-slate-700 hover:text-slate-900" href="/faq">FAQ</a>
-            <a className="underline text-slate-700 hover:text-slate-900" href="/compliance">Compliance & Safety</a>
-            <a className="underline text-slate-700 hover:text-slate-900" href="/support">Contact Support</a>
+          <a className="underline text-slate-700 hover:text-slate-900" href="/privacy">
+            Privacy Policy
+          </a>
+          <a className="underline text-slate-700 hover:text-slate-900" href="/terms">
+            Terms of Service
+          </a>
+          <a className="underline text-slate-700 hover:text-slate-900" href="/faq">
+            FAQ
+          </a>
+          <a className="underline text-slate-700 hover:text-slate-900" href="/compliance">
+            Compliance & Safety
+          </a>
+          <a className="underline text-slate-700 hover:text-slate-900" href="/support">
+            Contact Support
+          </a>
         </div>
-        </div>
-
+      </div>
     </main>
   );
 }

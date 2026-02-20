@@ -27,6 +27,42 @@ function friendlyAuthError(code: string) {
   return c ? `Sign-in failed: ${c}` : "Sign-in failed. Please try again.";
 }
 
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    // eye-off (open = showing text, so icon indicates you can hide)
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.94" />
+      <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.86 21.86 0 0 1-2.5 3.94" />
+      <path d="M14.12 14.12a3 3 0 0 1-4.24-4.24" />
+      <path d="M1 1l22 22" />
+    </svg>
+  ) : (
+    // eye (open = hidden text, so icon indicates you can show)
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+    </svg>
+  );
+}
+
 export default function SignInClient({ callbackUrl, errorCode }: SignInClientProps) {
   const [providers, setProviders] = useState<ProviderMap | null>(null);
   const [loadingProviders, setLoadingProviders] = useState(true);
@@ -39,6 +75,9 @@ export default function SignInClient({ callbackUrl, errorCode }: SignInClientPro
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"magic" | "password">("magic");
+
+  // ✅ show/hide password (credentials sign-in)
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (errorCode) {
@@ -210,9 +249,7 @@ export default function SignInClient({ callbackUrl, errorCode }: SignInClientPro
       {activeTab === "magic" ? (
         <div className="rounded-xl border bg-white p-4">
           <div className="text-sm font-semibold text-slate-900">Sign in with a magic link</div>
-          <div className="mt-1 text-xs text-slate-600">
-            Best for first-time users. No password needed.
-          </div>
+          <div className="mt-1 text-xs text-slate-600">Best for first-time users. No password needed.</div>
 
           {!hasEmailProvider && !loadingProviders ? (
             <div className="mt-3 text-sm text-slate-600">
@@ -265,15 +302,25 @@ export default function SignInClient({ callbackUrl, errorCode }: SignInClientPro
 
               <div>
                 <label className="block text-sm font-medium">Password</label>
-                <input
-                  className="mt-1 w-full rounded-lg border px-3 py-2"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  type="password"
-                  placeholder="••••••••"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    className="mt-1 w-full rounded-lg border px-3 py-2 pr-10"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete="current-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    <EyeIcon open={showPassword} />
+                  </button>
+                </div>
               </div>
 
               <button type="submit" disabled={busy} className={pinkBtn}>
@@ -281,9 +328,7 @@ export default function SignInClient({ callbackUrl, errorCode }: SignInClientPro
               </button>
             </form>
           ) : (
-            !loadingProviders && (
-              <div className="mt-3 text-sm text-slate-600">Credentials provider not available.</div>
-            )
+            !loadingProviders && <div className="mt-3 text-sm text-slate-600">Credentials provider not available.</div>
           )}
         </div>
       ) : null}

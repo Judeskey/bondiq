@@ -27,6 +27,51 @@ function isSoftAcceptError(message: string) {
 
 type SessionUser = { email?: string | null } | null;
 
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    // eye-off (open = showing text, so icon indicates you can hide)
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.94" />
+      <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.86 21.86 0 0 1-2.5 3.94" />
+      <path d="M14.12 14.12a3 3 0 0 1-4.24-4.24" />
+      <path d="M1 1l22 22" />
+    </svg>
+  ) : (
+    // eye (open = hidden text, so icon indicates you can show)
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+    </svg>
+  );
+}
+
+function markPasswordWasSetFromInvite() {
+  try {
+    localStorage.setItem("bondiq_pw_set", "1");
+    localStorage.setItem("bondiq_pw_set_at", String(Date.now()));
+  } catch {
+    // ignore
+  }
+}
+
 export default function InviteClient() {
   const sp = useSearchParams();
   const router = useRouter();
@@ -61,11 +106,18 @@ export default function InviteClient() {
   const [loginEmail, setLoginEmail] = useState(invitedEmail || "");
   const [loginPassword, setLoginPassword] = useState("");
 
+  // ✅ show/hide toggle (sign-in)
+  const [showLoginPw, setShowLoginPw] = useState(false);
+
   // Create account form (credentials)
   const [newName, setNewName] = useState("");
   const [newEmail, setNewEmail] = useState(invitedEmail || "");
   const [newPassword, setNewPassword] = useState("");
   const [newConfirm, setNewConfirm] = useState("");
+
+  // ✅ show/hide toggles (create)
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
 
   // QR
   const [qr, setQr] = useState<string>("");
@@ -156,6 +208,9 @@ export default function InviteClient() {
         return;
       }
 
+      // ✅ If they successfully signed in with credentials, they have a password already
+      markPasswordWasSetFromInvite();
+
       await loadSession();
       setMsg("✅ Signed in. Click Continue to connect.");
     } catch (err: any) {
@@ -216,6 +271,9 @@ export default function InviteClient() {
         setMsg(res.error);
         return;
       }
+
+      // ✅ They set a password on this page
+      markPasswordWasSetFromInvite();
 
       await loadSession();
       setMsg("✅ Account created. Click Continue to connect.");
@@ -345,14 +403,24 @@ export default function InviteClient() {
 
                 <div>
                   <label className="block text-sm font-medium">Password</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border px-3 py-2"
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    autoComplete="current-password"
-                    type="password"
-                    required
-                  />
+                  <div className="relative">
+                    <input
+                      className="mt-1 w-full rounded-xl border px-3 py-2 pr-10"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      autoComplete="current-password"
+                      type={showLoginPw ? "text" : "password"}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginPw((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      aria-label={showLoginPw ? "Hide password" : "Show password"}
+                    >
+                      <EyeIcon open={showLoginPw} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* ✅ Make Sign in SECONDARY */}
@@ -392,26 +460,48 @@ export default function InviteClient() {
 
                 <div>
                   <label className="block text-sm font-medium">Password</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border px-3 py-2"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    type="password"
-                    required
-                    minLength={8}
-                  />
+                  <div className="relative">
+                    <input
+                      className="mt-1 w-full rounded-xl border px-3 py-2 pr-10"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      type={showNewPw ? "text" : "password"}
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPw((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      aria-label={showNewPw ? "Hide password" : "Show password"}
+                    >
+                      <EyeIcon open={showNewPw} />
+                    </button>
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium">Confirm password</label>
-                  <input
-                    className="mt-1 w-full rounded-xl border px-3 py-2"
-                    value={newConfirm}
-                    onChange={(e) => setNewConfirm(e.target.value)}
-                    type="password"
-                    required
-                    minLength={8}
-                  />
+                  <div className="relative">
+                    <input
+                      className="mt-1 w-full rounded-xl border px-3 py-2 pr-10"
+                      value={newConfirm}
+                      onChange={(e) => setNewConfirm(e.target.value)}
+                      type={showConfirmPw ? "text" : "password"}
+                      required
+                      minLength={8}
+                      autoComplete="new-password"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPw((v) => !v)}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      aria-label={showConfirmPw ? "Hide password" : "Show password"}
+                    >
+                      <EyeIcon open={showConfirmPw} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* ✅ Make Create account PRIMARY */}

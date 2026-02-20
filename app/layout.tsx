@@ -1,6 +1,6 @@
 // app/layout.tsx
 import "./globals.css";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import PwaRegister from "@/components/PwaRegister";
 import { Toaster } from "react-hot-toast";
 import GoogleAnalytics from "@/app/components/GoogleAnalytics";
@@ -33,7 +33,6 @@ export const metadata: Metadata = {
 
   // ✅ PWA
   manifest: "/manifest.json",
-  themeColor: "#ec4899",
 
   // ✅ OpenGraph (social previews + SEO signal)
   openGraph: {
@@ -64,6 +63,11 @@ export const metadata: Metadata = {
   },
 
   formatDetection: { telephone: false },
+};
+
+// ✅ Next.js wants themeColor in `viewport`, not `metadata`
+export const viewport: Viewport = {
+  themeColor: "#ec4899",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

@@ -67,6 +67,59 @@ function StepPill({ n, active }: { n: number; active: boolean }) {
   );
 }
 
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    // eye-off (open = showing text, so icon indicates you can hide)
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M17.94 17.94A10.94 10.94 0 0 1 12 20c-7 0-11-8-11-8a21.8 21.8 0 0 1 5.06-6.94" />
+      <path d="M9.9 4.24A10.94 10.94 0 0 1 12 4c7 0 11 8 11 8a21.86 21.86 0 0 1-2.5 3.94" />
+      <path d="M14.12 14.12a3 3 0 0 1-4.24-4.24" />
+      <path d="M1 1l22 22" />
+    </svg>
+  ) : (
+    // eye (open = hidden text, so icon indicates you can show)
+    <svg
+      viewBox="0 0 24 24"
+      className="h-5 w-5"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+    </svg>
+  );
+}
+
+function wasPasswordSetFromInvite(): boolean {
+  try {
+    return localStorage.getItem("bondiq_pw_set") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function markPasswordSetFromOnboarding() {
+  try {
+    localStorage.setItem("bondiq_pw_set", "1");
+    localStorage.setItem("bondiq_pw_set_at", String(Date.now()));
+  } catch {
+    // ignore
+  }
+}
+
 export default function OnboardingClient({
   email,
   name,
@@ -88,6 +141,34 @@ export default function OnboardingClient({
   const [displayName, setDisplayName] = useState(name || "");
   const [primary, setPrimary] = useState<LoveLanguage[]>([]);
   const [secondary, setSecondary] = useState<LoveLanguage[]>([]);
+
+  // ✅ Optional password during onboarding (no current password here)
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMsg, setPwMsg] = useState<string | null>(null);
+
+  // ✅ show/hide toggles
+  const [showNewPw, setShowNewPw] = useState(false);
+  const [showConfirmPw, setShowConfirmPw] = useState(false);
+
+  // ✅ Hide password section if it was already set on invite page
+  const [pwAlreadySet, setPwAlreadySet] = useState(false);
+
+  useEffect(() => {
+    setPwAlreadySet(wasPasswordSetFromInvite());
+  }, []);
+
+  // ✅ Mutual exclusivity: auto-remove overlaps so users can't get stuck
+  useEffect(() => {
+    if (primary.length === 0) return;
+    setSecondary((prev) => prev.filter((x) => !primary.includes(x)));
+  }, [primary]);
+
+  useEffect(() => {
+    if (secondary.length === 0) return;
+    setPrimary((prev) => prev.filter((x) => !secondary.includes(x)));
+  }, [secondary]);
 
   // Step 2 invite (inviter only)
   const [partnerEmail, setPartnerEmail] = useState("");
@@ -193,11 +274,57 @@ export default function OnboardingClient({
 
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
-      // ✅ Show the real server error (super helpful for “not progressing”)
       throw new Error(data?.error || `Failed to save step (HTTP ${res.status})`);
     }
 
     return data as { onboardingStep: number; onboardingCompleted: boolean };
+  }
+
+  async function savePasswordOnboarding(e: React.FormEvent) {
+    e.preventDefault();
+    setPwMsg(null);
+
+    const pw = newPassword.trim();
+    const cf = confirmPassword.trim();
+
+    if (pw.length < 8) {
+      setPwMsg("Password must be at least 8 characters.");
+      return;
+    }
+    if (pw !== cf) {
+      setPwMsg("New password and confirmation do not match.");
+      return;
+    }
+
+    setPwSaving(true);
+    try {
+      // ✅ Same endpoint as Settings page
+      const res = await fetch("/api/account/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword: "", newPassword: pw }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPwMsg(data?.error || "Failed to update password.");
+        return;
+      }
+
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowNewPw(false);
+      setShowConfirmPw(false);
+      setPwMsg("Password saved ✅ You can now sign in with password next time.");
+
+      // ✅ Mark so the section won't show again
+      markPasswordSetFromOnboarding();
+      setPwAlreadySet(true);
+    } catch (err: any) {
+      setPwMsg(err?.message || "Failed to update password.");
+    } finally {
+      setPwSaving(false);
+    }
   }
 
   async function submitProfile() {
@@ -215,7 +342,7 @@ export default function OnboardingClient({
         return;
       }
 
-      // Disallow overlap: secondary cannot contain primary
+      // Disallow overlap: secondary cannot contain primary (also enforced by UI)
       const secondaryClean = secondary.filter((x) => !primary.includes(x));
 
       // 1) Save name
@@ -246,11 +373,9 @@ export default function OnboardingClient({
       }
 
       // ✅ 3) Move forward
-      // IMPORTANT FIX: setStep immediately so the UI progresses even if route refresh is flaky.
       const stepData = await saveStep(2);
       setStep(stepData.onboardingStep);
 
-      // Refresh server state so page.tsx recomputes based on the newly-created loveProfile
       router.refresh();
     } catch (e: any) {
       setMsg(e?.message || "Network error saving profile");
@@ -269,6 +394,14 @@ export default function OnboardingClient({
 
   function isCheckedDisabled(list: LoveLanguage[], t: LoveLanguage) {
     return !list.includes(t) && list.length >= 3;
+  }
+
+  function isSecondaryDisabled(t: LoveLanguage) {
+    return primary.includes(t) || isCheckedDisabled(secondary, t);
+  }
+
+  function isPrimaryDisabled(t: LoveLanguage) {
+    return secondary.includes(t) || isCheckedDisabled(primary, t);
   }
 
   async function copyToClipboard(text: string) {
@@ -330,7 +463,7 @@ export default function OnboardingClient({
               <input
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="e.g., Jayne"
+                placeholder="e.g., Jane Doe"
                 className={input}
               />
               <div className="text-xs text-slate-500">This is what your partner will see.</div>
@@ -345,31 +478,32 @@ export default function OnboardingClient({
               </div>
 
               <div className="mt-3 grid gap-2">
-                {LOVE.map((t) => (
-                  <label
-                    key={t}
-                    className={[
-                      "flex items-center gap-3 rounded-xl border px-3 py-2",
-                      primary.includes(t) ? "border-[#ec4899] bg-pink-50" : "border-slate-200 bg-white",
-                      isCheckedDisabled(primary, t) ? "opacity-60" : "",
-                    ].join(" ")}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={primary.includes(t)}
-                      disabled={isCheckedDisabled(primary, t)}
-                      onChange={() => setPrimary((prev) => toggleMax3(prev, t))}
-                      className="h-4 w-4 accent-[#ec4899]"
-                    />
-                    <span className="text-sm text-slate-900">{label(t)}</span>
-                  </label>
-                ))}
+                {LOVE.map((t) => {
+                  const disabled = isPrimaryDisabled(t);
+                  return (
+                    <label
+                      key={t}
+                      className={[
+                        "flex items-center gap-3 rounded-xl border px-3 py-2",
+                        primary.includes(t) ? "border-[#ec4899] bg-pink-50" : "border-slate-200 bg-white",
+                        disabled ? "opacity-60" : "",
+                      ].join(" ")}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={primary.includes(t)}
+                        disabled={disabled}
+                        onChange={() => setPrimary((prev) => toggleMax3(prev, t))}
+                        className="h-4 w-4 accent-[#ec4899]"
+                      />
+                      <span className="text-sm text-slate-900">{label(t)}</span>
+                    </label>
+                  );
+                })}
               </div>
 
               {primary.length >= 3 ? (
-                <div className="mt-3 text-xs text-slate-600">
-                  You’ve selected the maximum of 3 primary languages.
-                </div>
+                <div className="mt-3 text-xs text-slate-600">You’ve selected the maximum of 3 primary languages.</div>
               ) : null}
             </div>
 
@@ -382,39 +516,106 @@ export default function OnboardingClient({
               </div>
 
               <div className="mt-3 grid gap-2">
-                {LOVE.map((t) => (
-                  <label
-                    key={t}
-                    className={[
-                      "flex items-center gap-3 rounded-xl border px-3 py-2",
-                      secondary.includes(t) ? "border-[#ec4899] bg-pink-50" : "border-slate-200 bg-white",
-                      isCheckedDisabled(secondary, t) ? "opacity-60" : "",
-                    ].join(" ")}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={secondary.includes(t)}
-                      disabled={isCheckedDisabled(secondary, t)}
-                      onChange={() => setSecondary((prev) => toggleMax3(prev, t))}
-                      className="h-4 w-4 accent-[#ec4899]"
-                    />
-                    <span className="text-sm text-slate-900">{label(t)}</span>
-                  </label>
-                ))}
+                {LOVE.map((t) => {
+                  const disabled = isSecondaryDisabled(t);
+                  return (
+                    <label
+                      key={t}
+                      className={[
+                        "flex items-center gap-3 rounded-xl border px-3 py-2",
+                        secondary.includes(t) ? "border-[#ec4899] bg-pink-50" : "border-slate-200 bg-white",
+                        disabled ? "opacity-60" : "",
+                      ].join(" ")}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={secondary.includes(t)}
+                        disabled={disabled}
+                        onChange={() => setSecondary((prev) => toggleMax3(prev, t))}
+                        className="h-4 w-4 accent-[#ec4899]"
+                      />
+                      <span className="text-sm text-slate-900">{label(t)}</span>
+                    </label>
+                  );
+                })}
               </div>
 
               <div className="mt-3 text-xs text-slate-600">
-                If a selection overlaps with Primary, it will be ignored automatically.
+                Secondary options exclude anything already selected in Primary (and vice-versa).
               </div>
             </div>
+
+            {/* ✅ Password (optional) — hidden if already set on invite page */}
+            {!pwAlreadySet ? (
+              <div className="rounded-2xl border p-4">
+                <div className="text-sm font-semibold text-slate-900">Set a password (optional)</div>
+                <p className="mt-1 text-sm text-slate-700">
+                  If you set a password now, you can sign in later without needing a magic link.
+                </p>
+
+                <form className="mt-4 space-y-3" onSubmit={savePasswordOnboarding}>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-800">New password</label>
+                    <div className="relative">
+                      <input
+                        type={showNewPw ? "text" : "password"}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        className={[input, "pr-10"].join(" ")}
+                        placeholder="At least 8 characters"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowNewPw((v) => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        aria-label={showNewPw ? "Hide password" : "Show password"}
+                      >
+                        <EyeIcon open={showNewPw} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-800">Confirm new password</label>
+                    <div className="relative">
+                      <input
+                        type={showConfirmPw ? "text" : "password"}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        className={[input, "pr-10"].join(" ")}
+                        placeholder="Repeat new password"
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPw((v) => !v)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                        aria-label={showConfirmPw ? "Hide password" : "Show password"}
+                      >
+                        <EyeIcon open={showConfirmPw} />
+                      </button>
+                    </div>
+                  </div>
+
+                  <button disabled={pwSaving} className={"w-full " + pinkOutline} type="submit">
+                    {pwSaving ? "Saving…" : "Save password"}
+                  </button>
+
+                  {pwMsg ? (
+                    <div className="mt-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-800">
+                      {pwMsg}
+                    </div>
+                  ) : null}
+                </form>
+              </div>
+            ) : null}
 
             <button disabled={saving || primary.length < 1} className={pinkBtnFull} onClick={submitProfile}>
               {saving ? "Saving…" : "Save & Continue"}
             </button>
 
-            <div className="text-xs text-slate-500">
-              Tip: Don’t overthink it — you can refine this later in Settings.
-            </div>
+            <div className="text-xs text-slate-500">Tip: Don’t overthink it — you can refine this later in Settings.</div>
           </div>
         )}
 
@@ -423,9 +624,7 @@ export default function OnboardingClient({
           <div className="space-y-5">
             <div>
               <h2 className="text-xl font-semibold text-slate-900">Step 2 — Connect your partner</h2>
-              <p className="mt-1 text-slate-700">
-                Invite your partner by email, or share a link / QR code.
-              </p>
+              <p className="mt-1 text-slate-700">Invite your partner by email, or share a link / QR code.</p>
             </div>
 
             <div className="space-y-2">
@@ -510,17 +709,13 @@ export default function OnboardingClient({
             {inviteUrl ? (
               <div className="rounded-2xl border bg-slate-50 p-4">
                 <div className="text-xs font-semibold text-slate-600">Invite link</div>
-                <div className="mt-2 break-all rounded-xl border bg-white p-3 text-sm text-slate-900">
-                  {inviteUrl}
-                </div>
+                <div className="mt-2 break-all rounded-xl border bg-white p-3 text-sm text-slate-900">{inviteUrl}</div>
 
                 <div className="mt-4">
                   <div className="text-sm font-semibold text-slate-900">QR code</div>
 
                   {qrErr ? (
-                    <div className="mt-2 rounded-xl border bg-rose-50 p-3 text-sm text-rose-900">
-                      {qrErr}
-                    </div>
+                    <div className="mt-2 rounded-xl border bg-rose-50 p-3 text-sm text-rose-900">{qrErr}</div>
                   ) : qr ? (
                     <div className="mt-2 inline-block rounded-xl border bg-white p-3">
                       <img src={qr} alt="Invite QR code" className="h-[220px] w-[220px]" />
