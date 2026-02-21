@@ -17,17 +17,38 @@ function assertCronSecret(req: Request) {
   }
 }
 
+function getQueryFlags(req: Request) {
+  const url = new URL(req.url);
+
+  const dryRun = url.searchParams.get("dry_run") === "1";
+  const testEmailRaw = url.searchParams.get("test_email")?.trim() || "";
+  const testEmail = testEmailRaw.length ? testEmailRaw.toLowerCase() : null;
+
+  // Only allow force if you're also using test_email (safety).
+  const force = url.searchParams.get("force") === "1" && !!testEmail;
+
+  return { dryRun, testEmail, force };
+}
+
 function dayOfWeekInTimeZone(timeZone: string, now = new Date()) {
   const wk = new Intl.DateTimeFormat("en-US", { timeZone, weekday: "short" }).format(now);
   switch (wk) {
-    case "Sun": return 0;
-    case "Mon": return 1;
-    case "Tue": return 2;
-    case "Wed": return 3;
-    case "Thu": return 4;
-    case "Fri": return 5;
-    case "Sat": return 6;
-    default: return now.getDay();
+    case "Sun":
+      return 0;
+    case "Mon":
+      return 1;
+    case "Tue":
+      return 2;
+    case "Wed":
+      return 3;
+    case "Thu":
+      return 4;
+    case "Fri":
+      return 5;
+    case "Sat":
+      return 6;
+    default:
+      return now.getDay();
   }
 }
 
@@ -71,14 +92,17 @@ function getWindowMinutes() {
   return Number.isFinite(n) && n >= 1 && n <= 60 ? Math.floor(n) : 7;
 }
 
+// ✅ Handles midnight wrap (e.g., target 00:03 and now 23:59)
 function isWithinWindow(nowMinutes: number, targetMinutes: number, window: number) {
   const diff = Math.abs(nowMinutes - targetMinutes);
-  return diff <= window;
+  const wrapDiff = 1440 - diff;
+  return Math.min(diff, wrapDiff) <= window;
 }
 
 export async function GET(req: Request) {
   try {
     assertCronSecret(req);
+    const { dryRun, testEmail, force } = getQueryFlags(req);
 
     const now = new Date();
     const maxUsers = getMaxUsersPerRun();
@@ -98,10 +122,14 @@ export async function GET(req: Request) {
     let dueCouples = 0;
 
     let consideredUsers = 0;
+    let eligibleUsers = 0;
     let sent = 0;
+
     let skippedNotTimeYet = 0;
     let skippedAlreadySent = 0;
     let skippedNoEmail = 0;
+    let skippedNotTestEmail = 0;
+
     let failed = 0;
 
     for (const c of couples) {
@@ -134,26 +162,41 @@ export async function GET(req: Request) {
         if (consideredUsers >= maxUsers) break;
         consideredUsers++;
 
-        if (!m.user?.email) {
+        const email = m.user?.email?.toLowerCase() || "";
+        if (!email) {
           skippedNoEmail++;
           continue;
         }
 
-        const already = await prisma.emailSendLog.findUnique({
-          where: {
-            userId_type_dayKey: {
-              userId: m.userId,
-              type: "WEEKLY_REFLECTION",
-              dayKey,
-            },
-          },
-          select: { id: true },
-        });
-
-        if (already) {
-          skippedAlreadySent++;
+        // ✅ If testing one address, ignore everyone else.
+        if (testEmail && email !== testEmail) {
+          skippedNotTestEmail++;
           continue;
         }
+
+        eligibleUsers++;
+
+        // ✅ Skip if already sent today (unless force=1 AND test_email used)
+        if (!force) {
+          const already = await prisma.emailSendLog.findUnique({
+            where: {
+              userId_type_dayKey: {
+                userId: m.userId,
+                type: "WEEKLY_REFLECTION",
+                dayKey,
+              },
+            },
+            select: { id: true },
+          });
+
+          if (already) {
+            skippedAlreadySent++;
+            continue;
+          }
+        }
+
+        // ✅ Dry run: don't send, don't log
+        if (dryRun) continue;
 
         try {
           await sendWeeklyReflectionEmail({ userId: m.userId });
@@ -182,13 +225,18 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
       ok: true,
+      dryRun,
+      testEmail,
+      force,
       scannedCouples,
       dueCouples,
       consideredUsers,
+      eligibleUsers,
       sent,
       skippedNotTimeYet,
       skippedAlreadySent,
       skippedNoEmail,
+      skippedNotTestEmail,
       failed,
       windowMinutes: window,
       maxUsers,
